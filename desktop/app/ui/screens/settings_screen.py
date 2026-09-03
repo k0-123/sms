@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -25,106 +26,130 @@ class SettingsScreen(QWidget):
         super().__init__(parent)
         self.devices_screen = devices_screen
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("SETTINGS"))
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(16)
+
+        # Header
+        header = QVBoxLayout()
+        header.setSpacing(4)
+        title = QLabel("Application Settings")
+        title.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff;")
+        subtitle = QLabel("Configure default transmission rate limits, column mappings, and local database.")
+        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        header.addWidget(title)
+        header.addWidget(subtitle)
+        layout.addLayout(header)
 
         # -- Phone ------------------------------------------------------
-        phone_box = QGroupBox("Phone")
+        phone_box = QGroupBox("Phone Gateway Connection")
         phone_form = QFormLayout(phone_box)
-        self.connected_device_label = QLabel()
-        phone_form.addRow("Connected device:", self.connected_device_label)
-        self.test_connection_btn = QPushButton("Test Connection")
+        phone_form.setSpacing(10)
+        self.connected_device_label = QLabel("None")
+        self.connected_device_label.setStyleSheet("font-weight: 700; color: #818cf8;")
+        phone_form.addRow("Paired Companion Device:", self.connected_device_label)
+        self.test_connection_btn = QPushButton("📡  Test Connection to Phone")
         phone_form.addRow(self.test_connection_btn)
         layout.addWidget(phone_box)
 
         # -- Sending -------------------------------------------------------
-        sending_box = QGroupBox("Sending")
+        sending_box = QGroupBox("SMS Transmission & Throttle Limits")
         sending_form = QFormLayout(sending_box)
+        sending_form.setSpacing(10)
         self.rate_spin = QSpinBox()
         self.rate_spin.setRange(500, 60000)
-        self.rate_spin.setSuffix(" ms")
-        sending_form.addRow("Default sending interval:", self.rate_spin)
+        self.rate_spin.setSingleStep(500)
+        self.rate_spin.setSuffix(" ms between messages")
+        sending_form.addRow("Default Sending Interval:", self.rate_spin)
+        
         self.daily_limit_spin = QSpinBox()
         self.daily_limit_spin.setRange(1, 2000)
-        sending_form.addRow("Default daily SMS limit:", self.daily_limit_spin)
-        self.auto_pause_check = QCheckBox("Auto-pause campaign when phone disconnects")
+        self.daily_limit_spin.setSuffix(" messages / day")
+        sending_form.addRow("Daily SMS Limit (Carrier Safe):", self.daily_limit_spin)
+        
+        self.auto_pause_check = QCheckBox("Auto-pause campaign immediately if phone disconnects")
+        self.auto_pause_check.setChecked(True)
         sending_form.addRow(self.auto_pause_check)
         layout.addWidget(sending_box)
 
         # -- Contacts ------------------------------------------------------
-        contacts_box = QGroupBox("Contacts")
+        contacts_box = QGroupBox("Default Excel Import Mappings")
         contacts_form = QFormLayout(contacts_box)
+        contacts_form.setSpacing(10)
         self.default_name_col_edit = QLineEdit()
-        contacts_form.addRow("Default name column:", self.default_name_col_edit)
+        self.default_name_col_edit.setPlaceholderText("Name, Full Name, Contact")
+        contacts_form.addRow("Default Name Column:", self.default_name_col_edit)
+        
         self.default_phone_col_edit = QLineEdit()
-        contacts_form.addRow("Default phone column:", self.default_phone_col_edit)
+        self.default_phone_col_edit.setPlaceholderText("Phone, Mobile, Number")
+        contacts_form.addRow("Default Phone Column:", self.default_phone_col_edit)
+        
         self.duplicate_handling_combo = QComboBox()
-        self.duplicate_handling_combo.addItems(["flag", "skip"])
-        contacts_form.addRow("Duplicate handling:", self.duplicate_handling_combo)
+        self.duplicate_handling_combo.addItems(["Skip duplicate numbers", "Overwrite existing contact", "Allow duplicate numbers"])
+        contacts_form.addRow("Duplicate Phone Handling:", self.duplicate_handling_combo)
         layout.addWidget(contacts_box)
 
-        # -- Storage -------------------------------------------------------
-        storage_box = QGroupBox("Storage")
-        storage_form = QFormLayout(storage_box)
-        storage_form.addRow("Database location:", QLabel(DB_PATH))
-        self.delete_data_btn = QPushButton("Delete Local Data...")
-        storage_form.addRow(self.delete_data_btn)
-        layout.addWidget(storage_box)
+        # -- Danger Zone ---------------------------------------------------
+        db_box = QGroupBox("Database Maintenance")
+        db_form = QFormLayout(db_box)
+        db_form.setSpacing(10)
+        self.clear_data_btn = QPushButton("⚠️  Reset / Clear Local Database")
+        self.clear_data_btn.setStyleSheet("background-color: #450a0a; color: #fca5a5; font-weight: 600;")
+        db_form.addRow("Danger Zone:", self.clear_data_btn)
+        layout.addWidget(db_box)
 
-        self.save_btn = QPushButton("Save Settings")
-        layout.addWidget(self.save_btn)
+        # Save Button Row
+        row = QHBoxLayout()
+        self.save_btn = QPushButton("💾  Save All Settings")
+        self.save_btn.setStyleSheet("background-color: #6366f1; color: white; font-weight: 700; padding: 10px 24px;")
+        row.addWidget(self.save_btn)
+        row.addStretch()
+        layout.addLayout(row)
+
         layout.addStretch()
 
         self.save_btn.clicked.connect(self._save)
+        self.clear_data_btn.clicked.connect(self._clear_database)
         self.test_connection_btn.clicked.connect(self._test_connection)
-        self.delete_data_btn.clicked.connect(self._delete_local_data)
 
         self.reload()
 
     def reload(self) -> None:
-        s = settings_store.load()
-        self.rate_spin.setValue(s["default_rate_limit_ms"])
-        self.daily_limit_spin.setValue(s["default_daily_limit"])
-        self.auto_pause_check.setChecked(s["auto_pause_on_disconnect"])
-        self.default_name_col_edit.setText(s["default_name_column"])
-        self.default_phone_col_edit.setText(s["default_phone_column"])
-        self.duplicate_handling_combo.setCurrentText(s["duplicate_handling"])
+        cfg = settings_store.load()
+        self.rate_spin.setValue(int(cfg.get("default_rate_limit_ms", 2000)))
+        self.daily_limit_spin.setValue(int(cfg.get("default_daily_limit", 100)))
+        self.auto_pause_check.setChecked(bool(cfg.get("auto_pause_on_disconnect", True)))
+        self.default_name_col_edit.setText(cfg.get("default_name_column", "Name"))
+        self.default_phone_col_edit.setText(cfg.get("default_phone_column", "Phone"))
+        dup = cfg.get("duplicate_handling", "skip")
+        idx = {"skip": 0, "overwrite": 1, "allow": 2}.get(dup, 0)
+        self.duplicate_handling_combo.setCurrentIndex(idx)
 
-        if self.devices_screen is not None:
-            from app.repositories import devices_repo
-
-            paired = devices_repo.list_all(paired_only=True)
-            self.connected_device_label.setText(paired[0]["device_name"] if paired else "No phone paired")
+        from app.repositories import devices_repo
+        paired = devices_repo.list_all(paired_only=True)
+        if paired:
+            device = paired[0]
+            status = "🟢 Connected" if self.devices_screen and self.devices_screen._connected else "⚪ Offline"
+            self.connected_device_label.setText(f"{device['device_name']}  ({status})")
+        else:
+            self.connected_device_label.setText("No phone paired")
 
     def _save(self) -> None:
-        settings_store.save(
-            {
-                "default_rate_limit_ms": self.rate_spin.value(),
-                "default_daily_limit": self.daily_limit_spin.value(),
-                "auto_pause_on_disconnect": self.auto_pause_check.isChecked(),
-                "default_name_column": self.default_name_col_edit.text(),
-                "default_phone_column": self.default_phone_col_edit.text(),
-                "duplicate_handling": self.duplicate_handling_combo.currentText(),
-            }
-        )
-        QMessageBox.information(self, "Saved", "Settings saved.")
+        dup_map = {0: "skip", 1: "overwrite", 2: "allow"}
+        settings_store.save({
+            "default_rate_limit_ms": self.rate_spin.value(),
+            "default_daily_limit": self.daily_limit_spin.value(),
+            "auto_pause_on_disconnect": self.auto_pause_check.isChecked(),
+            "default_name_column": self.default_name_col_edit.text().strip(),
+            "default_phone_column": self.default_phone_col_edit.text().strip(),
+            "duplicate_handling": dup_map.get(self.duplicate_handling_combo.currentIndex(), "skip"),
+        })
+        QMessageBox.information(self, "Saved", "Settings saved successfully.")
 
-    def _test_connection(self) -> None:
-        if self.devices_screen is None:
-            return
-        connected = getattr(self.devices_screen, "_connected", False)
-        if connected:
-            QMessageBox.information(self, "Connection OK", "Phone is connected.")
-        else:
-            QMessageBox.warning(
-                self, "No phone connected",
-                "No phone connected.\n\nPlease connect your Android phone before starting the campaign."
-            )
-
-    def _delete_local_data(self) -> None:
-        confirm = QMessageBox.question(
-            self, "Delete all local data?",
-            "This will permanently delete all contacts, campaigns, and history stored on this "
-            "computer. This cannot be undone. Continue?",
+    def _clear_database(self) -> None:
+        confirm = QMessageBox.warning(
+            self, "Reset Database",
+            "This will delete all stored contacts, campaign history, and saved templates.\n\nAre you sure you want to proceed?",
+            QMessageBox.Yes | QMessageBox.No,
         )
         if confirm != QMessageBox.Yes:
             return
@@ -132,12 +157,14 @@ class SettingsScreen(QWidget):
         try:
             if os.path.exists(DB_PATH):
                 os.remove(DB_PATH)
-            for ext in ("-wal", "-shm"):
-                p = DB_PATH + ext
-                if os.path.exists(p):
-                    os.remove(p)
-        except OSError as exc:
-            QMessageBox.critical(self, "Could not delete data", str(exc))
-            return
-        run_migrations()
-        QMessageBox.information(self, "Deleted", "All local data has been deleted.")
+            run_migrations()
+            QMessageBox.information(self, "Database Reset", "Database cleared and reinitialized.")
+            self.reload()
+        except Exception as exc:
+            QMessageBox.critical(self, "Reset failed", f"Could not reset database: {exc}")
+
+    def _test_connection(self) -> None:
+        if self.devices_screen and self.devices_screen._connected:
+            QMessageBox.information(self, "Connection Active", "Companion Android phone is actively connected!")
+        else:
+            QMessageBox.warning(self, "Not Connected", "No active connection to companion phone. Please go to Devices tab and connect.")

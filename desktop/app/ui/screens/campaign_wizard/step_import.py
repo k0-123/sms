@@ -3,7 +3,9 @@ from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QMessageBox,
     QPushButton,
@@ -27,16 +29,39 @@ class StepImport(QWidget):
         self._file_path = None
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("IMPORT CONTACTS"))
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(14)
 
-        self.pick_btn = QPushButton("Import Excel")
+        # Title
+        header = QVBoxLayout()
+        header.setSpacing(4)
+        title = QLabel("Step 1: Import Contacts File")
+        title.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff;")
+        subtitle = QLabel("Upload an Excel spreadsheet (.xlsx, .xls) or CSV file with your contact list.")
+        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        header.addWidget(title)
+        header.addWidget(subtitle)
+        layout.addLayout(header)
+
+        # File picker box
+        file_box = QFrame()
+        file_box.setStyleSheet("background-color: #1e293b; border: 1px dashed #475569; border-radius: 10px; padding: 14px;")
+        file_layout = QHBoxLayout(file_box)
+        
+        self.pick_btn = QPushButton("📁  Choose Excel / CSV File...")
+        self.pick_btn.setStyleSheet("background-color: #334155; color: white; font-weight: 600; padding: 10px 18px;")
         self.pick_btn.clicked.connect(self._pick_file)
-        layout.addWidget(self.pick_btn)
-
+        
         self.file_label = QLabel("No file selected.")
-        layout.addWidget(self.file_label)
+        self.file_label.setStyleSheet("color: #94a3b8; font-size: 13px;")
+        
+        file_layout.addWidget(self.pick_btn)
+        file_layout.addWidget(self.file_label, stretch=1)
+        layout.addWidget(file_box)
 
+        # Mapping form
         form = QFormLayout()
+        form.setSpacing(10)
         self.name_combo = QComboBox()
         self.phone_combo = QComboBox()
         self.email_combo = QComboBox()
@@ -48,14 +73,18 @@ class StepImport(QWidget):
         for combo in (self.name_combo, self.phone_combo, self.email_combo):
             combo.currentTextChanged.connect(self._refresh_preview)
 
-        layout.addWidget(QLabel("Preview (first 5 rows):"))
+        layout.addWidget(QLabel("Data Preview (First 5 Rows):"))
         self.preview_table = QTableWidget()
+        self.preview_table.setMaximumHeight(150)
+        self.preview_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(self.preview_table)
 
         row = QHBoxLayout()
-        self.import_btn = QPushButton("Import Contacts")
+        self.import_btn = QPushButton("Next: Import & Validate ➔")
+        self.import_btn.setStyleSheet("background-color: #6366f1; color: white; font-weight: 700; font-size: 13px; padding: 10px 24px;")
         self.import_btn.clicked.connect(self._do_import)
         self.import_btn.setEnabled(False)
+        row.addStretch()
         row.addWidget(self.import_btn)
         layout.addLayout(row)
 
@@ -74,7 +103,8 @@ class StepImport(QWidget):
             )
             return
         self._file_path = path
-        self.file_label.setText(path)
+        self.file_label.setText(f"📄 {path}")
+        self.file_label.setStyleSheet("color: #38bdf8; font-weight: 600;")
 
         headers = list(self._df.columns)
         mapping = detect_columns(self._df)
@@ -108,14 +138,30 @@ class StepImport(QWidget):
             return
         name_col = self.name_combo.currentText()
         phone_col = self.phone_combo.currentText()
-        email_col = self.email_combo.currentText() or None
         if not name_col or not phone_col:
-            QMessageBox.warning(self, "Missing mapping", "Please select both a Name and a Phone column.")
+            QMessageBox.warning(self, "Missing mapping", "Please select both a Name and Phone column.")
             return
-        result = import_contacts(self._file_path, self._df, name_col, phone_col, email_col)
-        if result.total == 0:
-            QMessageBox.warning(
-                self, "No valid contacts found", "Please check your Excel file."
-            )
+        email_col = self.email_combo.currentText() or None
+        column_mapping = {"name": name_col, "phone": phone_col}
+        if email_col:
+            column_mapping["email"] = email_col
+
+        try:
+            result = import_contacts(self._df, column_mapping, source_file=self._file_path)
+        except Exception as exc:
+            QMessageBox.critical(self, "Import failed", f"Could not import contacts: {exc}")
             return
+
         self.imported.emit(result)
+
+    def reset(self) -> None:
+        self._df = None
+        self._file_path = None
+        self.file_label.setText("No file selected.")
+        self.file_label.setStyleSheet("color: #94a3b8;")
+        self.name_combo.clear()
+        self.phone_combo.clear()
+        self.email_combo.clear()
+        self.preview_table.setRowCount(0)
+        self.preview_table.setColumnCount(0)
+        self.import_btn.setEnabled(False)

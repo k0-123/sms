@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QProgressBar,
     QPushButton,
@@ -12,7 +13,7 @@ from PySide6.QtWidgets import (
 from app.engine.campaign_engine import CampaignEngine
 from app.repositories import contacts_repo, messages_repo
 
-_STATUS_ICON = {"PENDING": "⏳", "SENDING": "⏳", "SENT": "✓", "FAILED": "✕", "RETRY": "⏳"}
+_STATUS_ICON = {"PENDING": "⏳ Pending", "SENDING": "📤 Sending...", "SENT": "✅ Delivered", "FAILED": "❌ Failed", "RETRY": "🔄 Retrying"}
 
 
 class StepSendMonitor(QWidget):
@@ -24,29 +25,52 @@ class StepSendMonitor(QWidget):
         self.campaign_id: str | None = None
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("SENDING MESSAGES"))
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(14)
 
+        # Title
+        header = QVBoxLayout()
+        header.setSpacing(4)
+        title = QLabel("Campaign Dispatch Monitor")
+        title.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff;")
+        subtitle = QLabel("Live transmission progress as SMS messages are dispatched through your phone.")
+        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        header.addWidget(title)
+        header.addWidget(subtitle)
+        layout.addLayout(header)
+
+        # Progress Bar
         self.progress_bar = QProgressBar()
+        self.progress_bar.setFixedHeight(22)
         layout.addWidget(self.progress_bar)
 
-        self.counts_label = QLabel()
+        # Stat pills row
+        self.counts_label = QLabel("Initializing...")
+        self.counts_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #38bdf8;")
         layout.addWidget(self.counts_label)
 
         self.banner_label = QLabel()
         self.banner_label.setWordWrap(True)
         layout.addWidget(self.banner_label)
 
+        # Live Messages Table
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["Name", "Phone", "Status"])
-        layout.addWidget(self.table)
+        self.table.setHorizontalHeaderLabels(["Recipient Name", "Phone Number", "Delivery Status"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        layout.addWidget(self.table, stretch=1)
 
+        # Action Buttons
         row = QHBoxLayout()
-        self.pause_btn = QPushButton("Pause")
-        self.resume_btn = QPushButton("Resume")
-        self.retry_btn = QPushButton("Retry Failed Messages")
+        self.pause_btn = QPushButton("⏸️  Pause Campaign")
+        self.resume_btn = QPushButton("▶️  Resume Campaign")
+        self.resume_btn.setStyleSheet("background-color: #059669; color: white; font-weight: 700;")
+        self.retry_btn = QPushButton("🔄  Retry Failed Messages")
+        self.retry_btn.setStyleSheet("background-color: #6366f1; color: white; font-weight: 700;")
+        
         row.addWidget(self.pause_btn)
         row.addWidget(self.resume_btn)
+        row.addStretch()
         row.addWidget(self.retry_btn)
         layout.addLayout(row)
 
@@ -58,66 +82,61 @@ class StepSendMonitor(QWidget):
         self.engine.campaign_paused.connect(self._on_paused)
         self.engine.campaign_resumed.connect(self._on_resumed)
         self.engine.campaign_completed.connect(self._on_completed)
-        self.engine.message_status_changed.connect(self._on_message_status)
 
-    def start(self, campaign_id: str) -> None:
+    def load(self, campaign_id: str) -> None:
         self.campaign_id = campaign_id
-        self._reload_table()
-        self.banner_label.setText("")
-        self.engine.start_campaign(campaign_id)
+        self.banner_label.clear()
+        self.banner_label.setStyleSheet("")
+        self._refresh_table()
 
-    def _reload_table(self) -> None:
+    def _on_progress(self, sent: int, total: int, pending: int, failed: int) -> None:
+        pct = int(sent / total * 100) if total > 0 else 0
+        self.progress_bar.setValue(pct)
+        self.counts_label.setText(
+            f"📊 Progress: {sent}/{total} ({pct}%)    |    ✅ Sent: {sent}    ❌ Failed: {failed}    ⏳ Pending: {pending}"
+        )
+        self._refresh_table()
+
+    def _on_paused(self, reason: str) -> None:
+        self.banner_label.setText(f"⏸️ Campaign Paused: {reason}")
+        self.banner_label.setStyleSheet(
+            "background-color: #451a03; color: #fde68a; border: 1px solid #b45309; "
+            "border-radius: 8px; padding: 10px 14px; font-weight: 600;"
+        )
+
+    def _on_resumed(self) -> None:
+        self.banner_label.clear()
+        self.banner_label.setStyleSheet("")
+
+    def _on_completed(self) -> None:
+        self.banner_label.setText("🎉 All messages in this campaign have been processed!")
+        self.banner_label.setStyleSheet(
+            "background-color: #064e3b; color: #6ee7b7; border: 1px solid #059669; "
+            "border-radius: 8px; padding: 10px 14px; font-weight: 700;"
+        )
+        self._refresh_table()
+
+    def _refresh_table(self) -> None:
         if not self.campaign_id:
             return
-        rows = messages_repo.list_for_campaign(self.campaign_id)
-        self.table.setRowCount(len(rows))
-        self._row_by_message_id = {}
-        for r, m in enumerate(rows):
-            contact = contacts_repo.get(m["contact_id"])
-            self.table.setItem(r, 0, QTableWidgetItem(contact["name"] if contact else ""))
+        messages = messages_repo.list_for_campaign(self.campaign_id)
+        self.table.setRowCount(len(messages))
+        for r, m in enumerate(messages):
+            contact = contacts_repo.get(m["contact_id"]) if m["contact_id"] else None
+            name = contact["name"] if contact else "--"
+            status_text = _STATUS_ICON.get(m["status"], m["status"])
+            self.table.setItem(r, 0, QTableWidgetItem(name))
             self.table.setItem(r, 1, QTableWidgetItem(m["phone_e164"]))
-            self.table.setItem(r, 2, QTableWidgetItem(f"{_STATUS_ICON.get(m['status'], '')} {m['status']}"))
-            self._row_by_message_id[m["id"]] = r
-
-    def _on_message_status(self, message_id: str, status: str) -> None:
-        row = getattr(self, "_row_by_message_id", {}).get(message_id)
-        if row is not None:
-            self.table.setItem(row, 2, QTableWidgetItem(f"{_STATUS_ICON.get(status, '')} {status}"))
-
-    def _on_progress(self, campaign_id: str, sent: int, failed: int, total: int) -> None:
-        if campaign_id != self.campaign_id:
-            return
-        done = sent + failed
-        self.progress_bar.setMaximum(max(total, 1))
-        self.progress_bar.setValue(done)
-        pending = total - done
-        self.counts_label.setText(f"{done} / {total}\n✓ Sent: {sent}    ✕ Failed: {failed}    ⏳ Pending: {pending}")
-
-    def _on_paused(self, campaign_id: str, reason: str) -> None:
-        if campaign_id != self.campaign_id:
-            return
-        if "disconnect" in reason.lower() or "lost" in reason.lower():
-            self.banner_label.setText(f"⚠ PHONE DISCONNECTED\n\nSending has been automatically paused.\n{reason}")
-        else:
-            self.banner_label.setText("CAMPAIGN PAUSED")
-
-    def _on_resumed(self, campaign_id: str) -> None:
-        if campaign_id == self.campaign_id:
-            self.banner_label.setText("")
-
-    def _on_completed(self, campaign_id: str) -> None:
-        if campaign_id == self.campaign_id:
-            self.banner_label.setText("Campaign completed.")
+            self.table.setItem(r, 2, QTableWidgetItem(status_text))
 
     def _pause(self) -> None:
         if self.campaign_id:
-            self.engine.pause(self.campaign_id)
+            self.engine.pause_campaign(self.campaign_id, "Paused by user.")
 
     def _resume(self) -> None:
         if self.campaign_id:
-            self.engine.resume(self.campaign_id)
+            self.engine.resume_campaign(self.campaign_id)
 
     def _retry(self) -> None:
         if self.campaign_id:
             self.engine.retry_failed(self.campaign_id)
-            self._reload_table()

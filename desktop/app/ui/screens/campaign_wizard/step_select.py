@@ -20,20 +20,36 @@ class StepSelect(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("SELECT CONTACTS"))
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(14)
+
+        # Title
+        header = QVBoxLayout()
+        header.setSpacing(4)
+        title = QLabel("Step 3: Select Campaign Recipients")
+        title.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff;")
+        subtitle = QLabel("Choose which verified contacts should receive this message broadcast.")
+        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        header.addWidget(title)
+        header.addWidget(subtitle)
+        layout.addLayout(header)
 
         self.list_widget = QListWidget()
-        layout.addWidget(self.list_widget)
+        layout.addWidget(self.list_widget, stretch=1)
 
-        self.count_label = QLabel()
+        self.count_label = QLabel("0 contacts selected")
+        self.count_label.setStyleSheet("font-weight: 700; color: #38bdf8; font-size: 12px;")
         layout.addWidget(self.count_label)
 
         row = QHBoxLayout()
         self.select_all_btn = QPushButton("Select All")
         self.deselect_all_btn = QPushButton("Deselect All")
-        self.continue_btn = QPushButton("Continue")
+        self.continue_btn = QPushButton("Next: Compose Message ➔")
+        self.continue_btn.setStyleSheet("background-color: #6366f1; color: white; font-weight: 700; font-size: 13px; padding: 10px 24px;")
+        
         row.addWidget(self.select_all_btn)
         row.addWidget(self.deselect_all_btn)
+        row.addStretch()
         row.addWidget(self.continue_btn)
         layout.addLayout(row)
 
@@ -46,7 +62,7 @@ class StepSelect(QWidget):
         self.list_widget.blockSignals(True)
         self.list_widget.clear()
         for contact in contacts_repo.list_all(valid_only=True):
-            item = QListWidgetItem(f"{contact['name']}    {contact['phone_e164']}")
+            item = QListWidgetItem(f"📱  {contact['name']:<25}  •  {contact['phone_e164']}")
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked)  # default: all valid contacts selected
             item.setData(Qt.UserRole, contact["id"])
@@ -64,17 +80,17 @@ class StepSelect(QWidget):
             self.list_widget.item(i).setCheckState(Qt.Unchecked)
         self._update_count()
 
-    def _selected_ids(self) -> list[str]:
-        return [
+    def _update_count(self) -> None:
+        selected = sum(
+            1 for i in range(self.list_widget.count())
+            if self.list_widget.item(i).checkState() == Qt.Checked
+        )
+        self.count_label.setText(f"👥 {selected} of {self.list_widget.count()} contact(s) selected for this campaign")
+
+    def _continue(self) -> None:
+        ids = [
             self.list_widget.item(i).data(Qt.UserRole)
             for i in range(self.list_widget.count())
             if self.list_widget.item(i).checkState() == Qt.Checked
         ]
-
-    def _update_count(self) -> None:
-        self.count_label.setText(f"{len(self._selected_ids())} contacts selected")
-
-    def _continue(self) -> None:
-        ids = self._selected_ids()
-        if ids:
-            self.continued.emit(ids)
+        self.continued.emit(ids)

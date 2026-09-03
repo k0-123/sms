@@ -1,4 +1,6 @@
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -29,35 +31,76 @@ class DevicesScreen(QWidget):
         self._pending_pair_device: DiscoveredDevice | None = None
 
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("DEVICES"))
+        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(16)
 
-        self.status_label = QLabel("\U0001F534 Not connected")
-        layout.addWidget(self.status_label)
+        # Header
+        header = QVBoxLayout()
+        header.setSpacing(4)
+        title = QLabel("Device Management")
+        title.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff;")
+        subtitle = QLabel("Pair and connect your Android smartphone via Wi-Fi to use it as an SMS gateway.")
+        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        header.addWidget(title)
+        header.addWidget(subtitle)
+        layout.addLayout(header)
 
-        layout.addWidget(QLabel("Discovered phones on your Wi-Fi:"))
+        # Status Badge Card
+        self.status_card = QFrame()
+        self.status_card.setStyleSheet("background-color: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 12px;")
+        status_layout = QHBoxLayout(self.status_card)
+        status_layout.setContentsMargins(12, 8, 12, 8)
+        
+        status_title = QLabel("Connection State:")
+        status_title.setStyleSheet("font-weight: 600; color: #94a3b8;")
+        self.status_label = QLabel("🔴 Not Connected")
+        self.status_label.setStyleSheet("font-weight: 700; color: #f87171; font-size: 14px;")
+        status_layout.addWidget(status_title)
+        status_layout.addWidget(self.status_label)
+        status_layout.addStretch()
+        layout.addWidget(self.status_card)
+
+        # Discovered Section
+        disc_label = QLabel("Discovered Phones on Wi-Fi:")
+        disc_label.setStyleSheet("font-weight: 700; font-size: 13px; color: #e2e8f0; margin-top: 6px;")
+        layout.addWidget(disc_label)
+
         self.discovered_list = QListWidget()
+        self.discovered_list.setMinimumHeight(110)
         layout.addWidget(self.discovered_list)
 
         row = QHBoxLayout()
-        self.rescan_btn = QPushButton("Rescan")
-        self.pair_btn = QPushButton("Pair Selected")
+        self.rescan_btn = QPushButton("🔍  Rescan Wi-Fi")
+        self.pair_btn = QPushButton("🔗  Pair Selected")
+        self.manual_pair_btn = QPushButton("🌐  Pair via IP Address...")
+        self.pair_btn.setStyleSheet("background-color: #6366f1; color: white; font-weight: 700;")
+        
         row.addWidget(self.rescan_btn)
         row.addWidget(self.pair_btn)
+        row.addWidget(self.manual_pair_btn)
         layout.addLayout(row)
 
-        layout.addWidget(QLabel("Paired devices:"))
+        # Paired Section
+        paired_label = QLabel("Paired Devices:")
+        paired_label.setStyleSheet("font-weight: 700; font-size: 13px; color: #e2e8f0; margin-top: 10px;")
+        layout.addWidget(paired_label)
+
         self.paired_list = QListWidget()
+        self.paired_list.setMinimumHeight(110)
         layout.addWidget(self.paired_list)
 
         row2 = QHBoxLayout()
-        self.connect_btn = QPushButton("Connect")
-        self.unpair_btn = QPushButton("Unpair")
+        self.connect_btn = QPushButton("🟢  Connect to Selected")
+        self.connect_btn.setStyleSheet("background-color: #059669; color: white; font-weight: 700;")
+        self.unpair_btn = QPushButton("🗑️  Unpair Device")
+        self.unpair_btn.setStyleSheet("background-color: #450a0a; color: #fca5a5;")
         row2.addWidget(self.connect_btn)
         row2.addWidget(self.unpair_btn)
         layout.addLayout(row2)
 
         self.rescan_btn.clicked.connect(self._rescan)
         self.pair_btn.clicked.connect(self._pair_selected)
+        self.manual_pair_btn.clicked.connect(self._pair_manual)
         self.connect_btn.clicked.connect(self._connect_selected)
         self.unpair_btn.clicked.connect(self._unpair_selected)
 
@@ -78,16 +121,42 @@ class DevicesScreen(QWidget):
 
     def _on_device_found(self, device: DiscoveredDevice) -> None:
         self._discovered[device.name] = device
-        label = f"{device.device_name or device.name} ({device.address}:{device.port})"
+        label = f"📱 {device.device_name or device.name}  •  IP: {device.address}:{device.port}"
         item = QListWidgetItem(label)
         item.setData(1, device.name)
         self.discovered_list.addItem(item)
 
     # -- pairing ---------------------------------------------------------
+    def _pair_manual(self) -> None:
+        ip, ok = QInputDialog.getText(
+            self, "Phone IP Address", "Enter your Phone's Wi-Fi IP address (e.g. 192.168.1.19):"
+        )
+        if not ok or not ip:
+            return
+        ip = ip.strip()
+        code, ok = QInputDialog.getText(
+            self, "Enter Pairing Code", "Enter the 6-digit code shown on the phone (e.g. 634681):"
+        )
+        if not ok or not code:
+            return
+        code = code.strip()
+        device = DiscoveredDevice(
+            name=f"Android Phone ({ip})",
+            address=ip,
+            port=8765,
+            device_name="Android Phone",
+        )
+        self._pending_pair_device = device
+        my_device_id = new_id()
+        self._pending_pair_device.device_id = my_device_id
+        self._pending_code = code
+        self.client.connected.connect(self._send_pending_pair_request)
+        self.client.connect_to(device.address, device.port)
+
     def _pair_selected(self) -> None:
         item = self.discovered_list.currentItem()
         if item is None:
-            QMessageBox.information(self, "No device selected", "Select a discovered phone first.")
+            QMessageBox.information(self, "No device selected", "Select a discovered phone from the list first.")
             return
         device = self._discovered.get(item.data(1))
         if device is None:
@@ -103,7 +172,6 @@ class DevicesScreen(QWidget):
         my_device_id = new_id()
         self._pending_pair_device.device_id = self._pending_pair_device.device_id or my_device_id
         self.client.connect_to(device.address, device.port)
-        # send_pair_request is issued once `connected` fires; store the code for that handler.
         self._pending_code = code
         self.client.connected.connect(self._send_pending_pair_request)
 
@@ -112,7 +180,7 @@ class DevicesScreen(QWidget):
         if self._pending_pair_device is None:
             return
         self._my_id = new_id()
-        self.client.send_pair_request(self._my_id, "My PC", self._pending_code)
+        self.client.send_pair_request(self._my_id, "Desktop App", self._pending_code)
 
     def _on_pair_response(self, accepted: bool, token: str, reason: str) -> None:
         device = self._pending_pair_device
@@ -131,14 +199,18 @@ class DevicesScreen(QWidget):
             device_id, device.device_name or device.name, pairing_token_ref=device_id,
             last_ip=device.address,
         )
-        QMessageBox.information(self, "Paired", f"Successfully paired with {device.device_name}.")
+        QMessageBox.information(self, "Paired Successfully", f"Successfully paired with {device.device_name}!")
         self.refresh_paired()
 
     # -- connect / unpair --------------------------------------------------
     def _connect_selected(self) -> None:
         item = self.paired_list.currentItem()
         if item is None:
-            return
+            if self.paired_list.count() > 0:
+                item = self.paired_list.item(0)
+            else:
+                QMessageBox.warning(self, "No Device", "No paired devices found. Pair your phone first.")
+                return
         device_id = item.data(1)
         device = devices_repo.get(device_id)
         if device is None or not device["last_ip"]:
@@ -170,17 +242,19 @@ class DevicesScreen(QWidget):
 
     def _on_connected(self) -> None:
         self._connected = True
-        self.status_label.setText("\U0001F7E2 Connected")
+        self.status_label.setText("🟢 Connected")
+        self.status_label.setStyleSheet("font-weight: 700; color: #34d399; font-size: 14px;")
 
     def _on_disconnected(self, reason: str) -> None:
         self._connected = False
-        self.status_label.setText("\U0001F534 Phone Disconnected")
+        self.status_label.setText("🔴 Disconnected")
+        self.status_label.setStyleSheet("font-weight: 700; color: #f87171; font-size: 14px;")
         if reason:
             QMessageBox.warning(self, "Disconnected", reason)
 
     def refresh_paired(self) -> None:
         self.paired_list.clear()
         for device in devices_repo.list_all(paired_only=True):
-            item = QListWidgetItem(f"{device['device_name']} ({device['last_ip'] or 'unknown IP'})")
+            item = QListWidgetItem(f"📱 {device['device_name']}  •  Last IP: {device['last_ip'] or 'unknown'}")
             item.setData(1, device["id"])
             self.paired_list.addItem(item)
