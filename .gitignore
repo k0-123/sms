@@ -1,0 +1,22 @@
+# Build outputs and caches
+.gradle/
+build/
+**/build/
+*.apk
+*.aab
+
+# Local properties and secrets
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# Python & Virtualenv
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS files
+Thumbs.db

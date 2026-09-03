@@ -1,0 +1,18 @@
+import sys
+
+from PySide6.QtWidgets import QApplication
+
+from app.db.migrations import run_migrations
+from app.ui.main_window import MainWindow
+
+
+def main() -> int:
+    run_migrations()
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
