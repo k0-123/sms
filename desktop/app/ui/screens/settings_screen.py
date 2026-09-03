@@ -32,35 +32,35 @@ class SettingsScreen(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Scroll area for clean view on any screen resolution
+        # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background-color: #f8fafc; }")
-        
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: #0f172a; }")
+
         container = QWidget()
-        container.setStyleSheet("background-color: #f8fafc;")
+        container.setStyleSheet("background-color: #0f172a;")
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(36, 28, 36, 36)
+        layout.setContentsMargins(32, 28, 32, 36)
         layout.setSpacing(20)
 
         # Header Title & Subtitle
         header = QVBoxLayout()
         header.setSpacing(4)
-        title = QLabel("Settings")
-        title.setStyleSheet("font-size: 26px; font-weight: 800; color: #0f172a;")
+        title = QLabel("Application Settings")
+        title.setStyleSheet("font-size: 24px; font-weight: 800; color: #ffffff;")
         subtitle = QLabel("Configure transmission intervals, default Excel column mappings, and app preferences.")
-        subtitle.setStyleSheet("font-size: 13.5px; color: #64748b;")
+        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
         header.addWidget(title)
         header.addWidget(subtitle)
         layout.addLayout(header)
 
-        # Section Helper Card Function
+        # Helper to create a dark card section
         def make_section(title_text: str) -> tuple[QFrame, QVBoxLayout]:
             card = QFrame()
             card.setStyleSheet(
                 "QFrame {"
-                "  background-color: #ffffff;"
-                "  border: 1px solid #e2e8f0;"
+                "  background-color: #1e293b;"
+                "  border: 1px solid #334155;"
                 "  border-radius: 10px;"
                 "  padding: 16px;"
                 "}"
@@ -70,13 +70,13 @@ class SettingsScreen(QWidget):
             card_layout.setSpacing(12)
 
             sec_title = QLabel(title_text)
-            sec_title.setStyleSheet("font-size: 14px; font-weight: 700; color: #1e293b;")
+            sec_title.setStyleSheet("font-size: 14px; font-weight: 700; color: #818cf8;")
             card_layout.addWidget(sec_title)
             return card, card_layout
 
-        # Input styling for perfect visibility
+        # High-contrast readable input styling
         input_style = (
-            "background-color: #ffffff; color: #0f172a; border: 1.5px solid #cbd5e1; "
+            "background-color: #0b1329; color: #ffffff; border: 1.5px solid #475569; "
             "border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600; min-height: 22px;"
         )
 
@@ -87,13 +87,13 @@ class SettingsScreen(QWidget):
         phone_form.setLabelAlignment(Qt.AlignLeft)
 
         self.connected_device_label = QLabel("No phone paired")
-        self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #2563eb;")
+        self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #38bdf8;")
         phone_form.addRow("Paired Companion Device:", self.connected_device_label)
 
         self.test_connection_btn = QPushButton("📡  Test Connection to Phone")
         self.test_connection_btn.setFixedWidth(220)
         self.test_connection_btn.setStyleSheet(
-            "background-color: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; "
+            "background-color: #334155; color: #ffffff; border: 1px solid #475569; "
             "border-radius: 6px; padding: 8px 16px; font-weight: 600;"
         )
         phone_form.addRow("", self.test_connection_btn)
@@ -122,7 +122,7 @@ class SettingsScreen(QWidget):
         sending_form.addRow("Daily SMS Limit (Carrier Safe):", self.daily_limit_spin)
 
         self.auto_pause_check = QCheckBox("Auto-pause campaign immediately if phone disconnects")
-        self.auto_pause_check.setStyleSheet("color: #334155; font-size: 13px; font-weight: 500;")
+        self.auto_pause_check.setStyleSheet("color: #e2e8f0; font-size: 13px; font-weight: 500;")
         self.auto_pause_check.setChecked(True)
         sending_form.addRow("", self.auto_pause_check)
         sending_layout.addLayout(sending_form)
@@ -163,7 +163,7 @@ class SettingsScreen(QWidget):
         self.clear_data_btn = QPushButton("⚠️  Reset / Clear Local Database")
         self.clear_data_btn.setFixedWidth(260)
         self.clear_data_btn.setStyleSheet(
-            "background-color: #fef2f2; color: #dc2626; border: 1.5px solid #fca5a5; "
+            "background-color: #450a0a; color: #fca5a5; border: 1.5px solid #991b1b; "
             "border-radius: 6px; padding: 8px 16px; font-weight: 700;"
         )
         db_form.addRow("Danger Zone:", self.clear_data_btn)
@@ -174,8 +174,8 @@ class SettingsScreen(QWidget):
         btn_row = QHBoxLayout()
         self.save_btn = QPushButton("💾  Save All Settings")
         self.save_btn.setStyleSheet(
-            "background-color: #1d4ed8; color: #ffffff; font-weight: 700; font-size: 14px; "
-            "border: 1px solid #1e40af; border-radius: 6px; padding: 10px 28px;"
+            "background-color: #6366f1; color: #ffffff; font-weight: 700; font-size: 14px; "
+            "border: 1px solid #4f46e5; border-radius: 6px; padding: 10px 28px;"
         )
         self.save_btn.setCursor(Qt.PointingHandCursor)
         btn_row.addWidget(self.save_btn)
@@ -209,10 +209,10 @@ class SettingsScreen(QWidget):
             device = paired[0]
             status = "🟢 Connected" if self.devices_screen and self.devices_screen._connected else "⚪ Paired (Offline)"
             self.connected_device_label.setText(f"{device['device_name']}  ({status})")
-            self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #16a34a;")
+            self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #34d399;")
         else:
-            self.connected_device_label.setText("No phone paired (Pair in 'Your phone' tab)")
-            self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #dc2626;")
+            self.connected_device_label.setText("No phone paired (Pair in 'Devices' tab)")
+            self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #f87171;")
 
     def _save(self) -> None:
         dup_map = {0: "skip", 1: "overwrite", 2: "allow"}
@@ -248,4 +248,4 @@ class SettingsScreen(QWidget):
         if self.devices_screen and self.devices_screen._connected:
             QMessageBox.information(self, "Connection Active", "Companion Android phone is actively connected!")
         else:
-            QMessageBox.warning(self, "Not Connected", "No active connection to companion phone. Please go to 'Your phone' tab and connect.")
+            QMessageBox.warning(self, "Not Connected", "No active connection to companion phone. Please go to 'Devices' tab and connect.")

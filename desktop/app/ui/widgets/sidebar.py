@@ -10,11 +10,12 @@ from PySide6.QtWidgets import (
 )
 
 NAV_ITEMS = [
+    ("📊  Dashboard", "Dashboard"),
     ("👥  Contacts", "Contacts"),
-    ("✈️  Send", "New Campaign"),
-    ("📄  Templates", "Templates"),
-    ("🕒  History", "History"),
-    ("📱  Your phone", "Devices"),
+    ("🚀  New Campaign", "New Campaign"),
+    ("📝  Templates", "Templates"),
+    ("📜  History", "History"),
+    ("📱  Devices", "Devices"),
     ("⚙️  Settings", "Settings"),
 ]
 
@@ -24,22 +25,22 @@ class Sidebar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(230)
+        self.setFixedWidth(225)
         self.setObjectName("SidebarContainer")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 18, 12, 16)
-        layout.setSpacing(10)
+        layout.setSpacing(8)
 
-        # QuickText Brand Header
+        # Brand Header
         header_widget = QWidget()
         header_layout = QVBoxLayout(header_widget)
         header_layout.setContentsMargins(8, 0, 8, 8)
         header_layout.setSpacing(3)
 
-        brand_title = QLabel("QuickText")
-        brand_title.setStyleSheet("font-size: 20px; font-weight: 800; color: #1e40af;")
-        brand_sub = QLabel("Text messages from your PC")
+        brand_title = QLabel("⚡ SMS Bridge")
+        brand_title.setStyleSheet("font-size: 19px; font-weight: 800; color: #ffffff;")
+        brand_sub = QLabel("Local Mobile Gateway")
         brand_sub.setStyleSheet("font-size: 11.5px; color: #64748b; font-weight: 500;")
         header_layout.addWidget(brand_title)
         header_layout.addWidget(brand_sub)
@@ -58,34 +59,28 @@ class Sidebar(QWidget):
         self.list_widget.currentItemChanged.connect(self._on_item_changed)
         layout.addWidget(self.list_widget, stretch=1)
 
-        # Bottom Phone Status Card (Like in QuickText screenshot)
+        # Bottom Phone Card
         self.phone_card = QFrame()
         self.phone_card.setStyleSheet(
             "QFrame {"
-            "  background-color: #f8fafc;"
-            "  border: 1px solid #e2e8f0;"
+            "  background-color: #1e293b;"
+            "  border: 1px solid #334155;"
             "  border-radius: 8px;"
             "  padding: 10px;"
             "}"
         )
         phone_layout = QVBoxLayout(self.phone_card)
         phone_layout.setContentsMargins(4, 4, 4, 4)
-        phone_layout.setSpacing(4)
+        phone_layout.setSpacing(3)
 
-        self.phone_status_dot = QLabel("🔴 Disconnected")
-        self.phone_status_dot.setStyleSheet("font-size: 11.5px; font-weight: 600; color: #dc2626;")
-        self.phone_name_label = QLabel("Pair in 'Your phone'")
-        self.phone_name_label.setStyleSheet("font-size: 11px; color: #64748b;")
+        self.phone_status_dot = QLabel("🔴 Phone Disconnected")
+        self.phone_status_dot.setStyleSheet("font-size: 11.5px; font-weight: 700; color: #f87171;")
+        self.phone_name_label = QLabel("Pair in Devices tab")
+        self.phone_name_label.setStyleSheet("font-size: 11px; color: #94a3b8;")
 
         phone_layout.addWidget(self.phone_status_dot)
         phone_layout.addWidget(self.phone_name_label)
         layout.addWidget(self.phone_card)
-
-        # App version
-        version_label = QLabel("v1.4.1")
-        version_label.setAlignment(Qt.AlignCenter)
-        version_label.setStyleSheet("font-size: 10px; color: #94a3b8;")
-        layout.addWidget(version_label)
 
         self.list_widget.setCurrentRow(0)
 
@@ -98,10 +93,10 @@ class Sidebar(QWidget):
     def set_connection_status(self, connected: bool, device_name: str = "") -> None:
         if connected:
             name_str = device_name if device_name else "Android Phone"
-            self.phone_status_dot.setText("🟢 Connected")
-            self.phone_status_dot.setStyleSheet("font-size: 11.5px; font-weight: 700; color: #16a34a;")
+            self.phone_status_dot.setText("🟢 Phone Connected")
+            self.phone_status_dot.setStyleSheet("font-size: 11.5px; font-weight: 700; color: #34d399;")
             self.phone_name_label.setText(name_str)
         else:
-            self.phone_status_dot.setText("🔴 Disconnected")
-            self.phone_status_dot.setStyleSheet("font-size: 11.5px; font-weight: 600; color: #dc2626;")
-            self.phone_name_label.setText("Tap 'Your phone' to pair")
+            self.phone_status_dot.setText("🔴 Phone Disconnected")
+            self.phone_status_dot.setStyleSheet("font-size: 11.5px; font-weight: 700; color: #f87171;")
+            self.phone_name_label.setText("Pair in Devices tab")

@@ -87,7 +87,7 @@ class HistoryScreen(QWidget):
             return
         campaign_id = self._campaign_ids[row]
         self._selected_campaign_id = campaign_id
-        failed = messages_repo.list_failed(campaign_id)
+        failed = messages_repo.list_for_campaign(campaign_id, status="FAILED")
         self.failed_table.setRowCount(len(failed))
         for r, m in enumerate(failed):
             contact = contacts_repo.get(m["contact_id"]) if m["contact_id"] else None
@@ -112,7 +112,7 @@ class HistoryScreen(QWidget):
         if not self._selected_campaign_id:
             QMessageBox.information(self, "No campaign selected", "Select a campaign from the table first.")
             return
-        failed = messages_repo.list_failed(self._selected_campaign_id)
+        failed = messages_repo.list_for_campaign(self._selected_campaign_id, status="FAILED")
         if not failed:
             QMessageBox.information(self, "No failed messages", "This campaign has no failed messages to retry.")
             return
