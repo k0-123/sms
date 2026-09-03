@@ -1,8 +1,7 @@
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
@@ -18,87 +17,63 @@ from PySide6.QtWidgets import (
 
 from app.repositories import contacts_repo
 from app.services.excel_import import detect_columns, import_contacts, read_excel
-from app.services.export import export_campaign_results
 
 
 class ContactsScreen(QWidget):
-    request_send_campaign = Signal()
-
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(32, 28, 32, 28)
-        layout.setSpacing(16)
+        layout.setContentsMargins(28, 22, 28, 22)
+        layout.setSpacing(14)
 
-        # Header Title & Subtitle (Like QuickText)
-        header_layout = QVBoxLayout()
-        header_layout.setSpacing(4)
-        title = QLabel("Contacts")
-        title.setStyleSheet("font-size: 26px; font-weight: 800; color: #0f172a;")
-        subtitle = QLabel("The people you send messages to. Import them from a file or add them by hand.")
-        subtitle.setStyleSheet("font-size: 13.5px; color: #64748b;")
-        header_layout.addWidget(title)
-        header_layout.addWidget(subtitle)
-        layout.addLayout(header_layout)
+        # Header Title & Monospace Telemetry
+        header = QVBoxLayout()
+        header.setSpacing(2)
+        title = QLabel("Contacts Directory")
+        title.setStyleSheet("font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;")
+        
+        self.count_sub = QLabel("DISPLAYING 0 OF 0 TOTAL RECORDS")
+        self.count_sub.setStyleSheet("font-size: 10px; color: #71717a; font-weight: 700; letter-spacing: 1px;")
+        
+        header.addWidget(title)
+        header.addWidget(self.count_sub)
+        layout.addLayout(header)
 
-        # Action Buttons Toolbar
+        # Prompt Search Bar
+        search_box_layout = QHBoxLayout()
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("> search --name or --phone")
+        self.search_box.setClearButtonEnabled(True)
+        search_box_layout.addWidget(self.search_box, stretch=1)
+        layout.addLayout(search_box_layout)
+
+        # Filter & Action Row
         action_row = QHBoxLayout()
         action_row.setSpacing(8)
 
-        self.import_file_btn = QPushButton("Import from file")
-        self.import_file_btn.setStyleSheet(
-            "background-color: #1d4ed8; color: #ffffff; font-weight: 600; "
-            "border: 1px solid #1e40af; border-radius: 6px; padding: 8px 16px;"
-        )
-        self.import_file_btn.setCursor(Qt.PointingHandCursor)
+        self.import_file_btn = QPushButton("[ 📁 IMPORT_FILE ]")
+        self.import_file_btn.setStyleSheet("background-color: #18181b; border: 1px solid #00e599; color: #00e599; font-weight: 700;")
+        
+        self.add_btn = QPushButton("[ + ADD ]")
+        self.delete_btn = QPushButton("[ 🗑️ DELETE ]")
+        self.delete_btn.setStyleSheet("background-color: #270909; border: 1px solid #7f1d1d; color: #fca5a5;")
+        self.export_btn = QPushButton("[ 📥 EXPORT ]")
 
-        self.import_phone_btn = QPushButton("Import from phone")
-        self.import_phone_btn.setStyleSheet(
-            "background-color: #1e3a8a; color: #ffffff; font-weight: 600; "
-            "border: 1px solid #172554; border-radius: 6px; padding: 8px 16px;"
-        )
-        self.import_phone_btn.setCursor(Qt.PointingHandCursor)
-
-        self.add_btn = QPushButton("Add contact")
-        self.edit_btn = QPushButton("Edit")
-        self.delete_btn = QPushButton("Delete")
-        self.delete_btn.setStyleSheet("color: #dc2626; border-color: #fca5a5;")
-        self.lists_btn = QPushButton("Lists")
-        self.export_btn = QPushButton("Export")
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItems(["MODE: ALL", "MODE: VALID ONLY", "MODE: INVALID ONLY"])
 
         action_row.addWidget(self.import_file_btn)
-        action_row.addWidget(self.import_phone_btn)
         action_row.addWidget(self.add_btn)
-        action_row.addWidget(self.edit_btn)
         action_row.addWidget(self.delete_btn)
-        action_row.addWidget(self.lists_btn)
         action_row.addWidget(self.export_btn)
         action_row.addStretch()
+        action_row.addWidget(self.filter_combo)
         layout.addLayout(action_row)
 
-        # Search Bar + Filter + Count
-        search_row = QHBoxLayout()
-        search_row.setSpacing(12)
-
-        self.search_box = QLineEdit()
-        self.search_box.setPlaceholderText("Search contacts...")
-        self.search_box.setClearButtonEnabled(True)
-
-        self.list_filter_combo = QComboBox()
-        self.list_filter_combo.addItems(["All lists", "Valid Numbers Only", "Recent Imports"])
-
-        self.count_label = QLabel("0 contacts")
-        self.count_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 500;")
-
-        search_row.addWidget(self.search_box, stretch=1)
-        search_row.addWidget(self.list_filter_combo)
-        search_row.addWidget(self.count_label)
-        layout.addLayout(search_row)
-
-        # Main Table Container
+        # Data Queue Table
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Phone number", "Details (Name)", "Lists", "Status"])
+        self.table.setHorizontalHeaderLabels(["ID / SELECT", "RECIPIENT NAME", "PHONE (E.164)", "TELEMETRY STATUS"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
@@ -107,9 +82,8 @@ class ContactsScreen(QWidget):
 
         # Signals
         self.search_box.textChanged.connect(self.refresh)
-        self.list_filter_combo.currentTextChanged.connect(self.refresh)
+        self.filter_combo.currentTextChanged.connect(self.refresh)
         self.import_file_btn.clicked.connect(self._import_from_file)
-        self.import_phone_btn.clicked.connect(self._import_from_phone)
         self.add_btn.clicked.connect(self._add_contact_manual)
         self.delete_btn.clicked.connect(self._delete_selected)
         self.export_btn.clicked.connect(self._export_contacts)
@@ -118,25 +92,29 @@ class ContactsScreen(QWidget):
 
     def refresh(self) -> None:
         search = self.search_box.text().strip() or None
-        valid_only = self.list_filter_combo.currentText() == "Valid Numbers Only"
+        mode = self.filter_combo.currentText()
+        valid_only = mode == "MODE: VALID ONLY"
         contacts = contacts_repo.list_all(valid_only=valid_only, search=search)
+        if mode == "MODE: INVALID ONLY":
+            contacts = [c for c in contacts if not c["is_valid"]]
 
         self.table.setRowCount(len(contacts))
-        self.count_label.setText(f"{len(contacts)} contact{'s' if len(contacts) != 1 else ''}")
+        counts = contacts_repo.counts()
+        self.count_sub.setText(f"DISPLAYING {len(contacts)} OF {counts['total']} TOTAL RECORDS • {counts['valid']} VALID")
 
         for r, c in enumerate(contacts):
             phone_str = c["phone_e164"] or c["phone_raw"]
-            name_str = c["name"] or "Unnamed"
-            status_str = "✅ Valid" if c["is_valid"] else f"⚠️ {c['validation_error'] or 'Invalid'}"
+            name_str = c["name"] or "--"
+            status_str = "🟢 VALID" if c["is_valid"] else f"🔴 INVALID ({c['validation_error'] or 'FORMAT_ERR'})"
 
-            item_phone = QTableWidgetItem(phone_str)
-            item_phone.setFlags(item_phone.flags() | Qt.ItemIsUserCheckable)
-            item_phone.setCheckState(Qt.Unchecked)
-            item_phone.setData(Qt.UserRole, c["id"])
+            item_id = QTableWidgetItem(f"[{r+1:03d}]")
+            item_id.setFlags(item_id.flags() | Qt.ItemIsUserCheckable)
+            item_id.setCheckState(Qt.Unchecked)
+            item_id.setData(Qt.UserRole, c["id"])
 
-            self.table.setItem(r, 0, item_phone)
+            self.table.setItem(r, 0, item_id)
             self.table.setItem(r, 1, QTableWidgetItem(name_str))
-            self.table.setItem(r, 2, QTableWidgetItem("Default"))
+            self.table.setItem(r, 2, QTableWidgetItem(phone_str))
             self.table.setItem(r, 3, QTableWidgetItem(status_str))
 
     def _import_from_file(self) -> None:
@@ -155,24 +133,18 @@ class ContactsScreen(QWidget):
                 mapping = {"name": name_col, "phone": phone_col}
             result = import_contacts(df, mapping, source_file=path)
             QMessageBox.information(
-                self, "Import Successful",
-                f"Imported {result.total} contacts:\n• {result.valid} Valid\n• {result.invalid} Invalid\n• {result.duplicates} Duplicates"
+                self, "Import Complete",
+                f"Imported {result.total} records:\n• {result.valid} Valid\n• {result.invalid} Invalid\n• {result.duplicates} Duplicates"
             )
             self.refresh()
         except Exception as exc:
             QMessageBox.critical(self, "Import Failed", f"Could not read file:\n{exc}")
 
-    def _import_from_phone(self) -> None:
-        QMessageBox.information(
-            self, "Import from Phone",
-            "To sync contacts directly from your phone's address book, start the SMS Bridge companion app on your phone."
-        )
-
     def _add_contact_manual(self) -> None:
-        name, ok = QInputDialog.getText(self, "Add Contact", "Contact Name:")
+        name, ok = QInputDialog.getText(self, "Add Record", "Contact Name:")
         if not ok or not name.strip():
             return
-        phone, ok = QInputDialog.getText(self, "Add Contact", "Phone Number (e.g. +919024709980):")
+        phone, ok = QInputDialog.getText(self, "Add Record", "Phone Number (e.g. +919024709980):")
         if not ok or not phone.strip():
             return
         phone_clean = phone.strip()
@@ -195,20 +167,20 @@ class ContactsScreen(QWidget):
                     selected_ids.append(item.data(Qt.UserRole))
 
         if not selected_ids:
-            QMessageBox.information(self, "No Selection", "Please check or select contact(s) to delete.")
+            QMessageBox.information(self, "No Selection", "Please check or select record(s) to purge.")
             return
 
         confirm = QMessageBox.question(
-            self, "Delete Contacts",
-            f"Are you sure you want to delete {len(selected_ids)} contact(s)?",
+            self, "Purge Records",
+            f"Are you sure you want to permanently delete {len(selected_ids)} record(s)?",
             QMessageBox.Yes | QMessageBox.No,
         )
         if confirm == QMessageBox.Yes:
-            contacts_repo.delete_batch(selected_ids)
+            contacts_repo.delete_many(selected_ids)
             self.refresh()
 
     def _export_contacts(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "Export Contacts", "contacts.xlsx", "Excel Files (*.xlsx);;CSV Files (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(self, "Export Records", "contacts.xlsx", "Excel Files (*.xlsx);;CSV Files (*.csv)")
         if not path:
             return
         import pandas as pd
@@ -219,4 +191,4 @@ class ContactsScreen(QWidget):
             df.to_csv(path, index=False)
         else:
             df.to_excel(path, index=False)
-        QMessageBox.information(self, "Exported", f"Successfully exported {len(contacts)} contacts to:\n{path}")
+        QMessageBox.information(self, "Export Complete", f"Exported {len(contacts)} records to:\n{path}")

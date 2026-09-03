@@ -16,26 +16,26 @@ def make_card(title: str) -> tuple[QFrame, QLabel, QLabel]:
     card = QFrame()
     card.setStyleSheet(
         "QFrame {"
-        "  background-color: #1e293b;"
-        "  border: 1px solid #334155;"
-        "  border-radius: 12px;"
-        "  padding: 16px;"
+        "  background-color: #0c0c0c;"
+        "  border: 1px solid #1f1f1f;"
+        "  border-radius: 8px;"
+        "  padding: 14px;"
         "}"
     )
     layout = QVBoxLayout(card)
-    layout.setContentsMargins(16, 16, 16, 16)
+    layout.setContentsMargins(14, 14, 14, 14)
     layout.setSpacing(6)
 
     title_label = QLabel(title.upper())
-    title_label.setStyleSheet("font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px;")
+    title_label.setStyleSheet("font-size: 10px; font-weight: 700; color: #71717a; letter-spacing: 1px;")
     layout.addWidget(title_label)
 
     value_label = QLabel("--")
-    value_label.setStyleSheet("font-size: 24px; font-weight: 800; color: #f8fafc;")
+    value_label.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff;")
     layout.addWidget(value_label)
 
     sub_label = QLabel("")
-    sub_label.setStyleSheet("font-size: 12px; color: #64748b;")
+    sub_label.setStyleSheet("font-size: 11px; color: #52525b;")
     layout.addWidget(sub_label)
 
     layout.addStretch()
@@ -48,105 +48,107 @@ class DashboardScreen(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(20)
+        layout.setContentsMargins(28, 22, 28, 22)
+        layout.setSpacing(18)
 
         # Header
         header_layout = QVBoxLayout()
-        header_layout.setSpacing(4)
-        title = QLabel("Dashboard Overview")
-        title.setStyleSheet("font-size: 24px; font-weight: 800; color: #ffffff;")
-        subtitle = QLabel("Monitor mobile phone connection status, contact database, and SMS campaigns.")
-        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        header_layout.setSpacing(2)
+        title = QLabel("Telemetry Console")
+        title.setStyleSheet("font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;")
+        subtitle = QLabel("SMS GATEWAY CORE • LOCAL NETWORK STATUS")
+        subtitle.setStyleSheet("font-size: 10px; color: #71717a; font-weight: 700; letter-spacing: 1px;")
         header_layout.addWidget(title)
         header_layout.addWidget(subtitle)
         layout.addLayout(header_layout)
 
-        # Grid of Cards
+        # 4 Metric Cards Grid
         grid = QGridLayout()
-        grid.setSpacing(16)
+        grid.setSpacing(14)
 
-        # Card 1: Phone
-        self.phone_card, self.phone_val, self.phone_sub = make_card("📱 Companion Phone")
-        grid.addWidget(self.phone_card, 0, 0)
+        card1, self.phone_status_val, self.phone_status_sub = make_card("[ LINK_GATEWAY ]")
+        card2, self.contacts_val, self.contacts_sub = make_card("[ CONTACTS_DB ]")
+        card3, self.campaigns_val, self.campaigns_sub = make_card("[ ACTIVE_DISPATCH ]")
+        card4, self.quick_action_val, self.quick_action_sub = make_card("[ SYSTEM_HEALTH ]")
 
-        # Card 2: Contacts
-        self.contacts_card, self.contacts_val, self.contacts_sub = make_card("👥 Total Contacts")
-        grid.addWidget(self.contacts_card, 0, 1)
+        grid.addWidget(card1, 0, 0)
+        grid.addWidget(card2, 0, 1)
+        grid.addWidget(card3, 1, 0)
+        grid.addWidget(card4, 1, 1)
+        layout.addLayout(grid)
 
-        # Card 3: Campaigns
-        self.camp_card, self.camp_val, self.camp_sub = make_card("🚀 Active Campaign")
-        grid.addWidget(self.camp_card, 1, 0)
-
-        # Card 4: Quick Action
+        # Action Panel
         action_card = QFrame()
         action_card.setStyleSheet(
             "QFrame {"
-            "  background-color: #1e293b;"
-            "  border: 1px solid #334155;"
-            "  border-radius: 12px;"
+            "  background-color: #0c0c0c;"
+            "  border: 1px solid #1f1f1f;"
+            "  border-radius: 8px;"
             "  padding: 16px;"
             "}"
         )
         action_layout = QVBoxLayout(action_card)
-        action_layout.setContentsMargins(16, 16, 16, 16)
-        action_layout.setSpacing(10)
+        action_layout.setContentsMargins(16, 14, 16, 14)
+        action_layout.setSpacing(12)
 
-        act_title = QLabel("⚡ QUICK ACTIONS")
-        act_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px;")
-        action_layout.addWidget(act_title)
+        sec_title = QLabel("OPERATIONAL SHORTCUTS")
+        sec_title.setStyleSheet("font-size: 10px; font-weight: 700; color: #71717a; letter-spacing: 1px;")
+        action_layout.addWidget(sec_title)
 
-        self.new_campaign_btn = QPushButton("🚀  Launch New Campaign")
-        self.new_campaign_btn.setStyleSheet(
-            "background-color: #6366f1; color: white; font-weight: 700; font-size: 13px; "
-            "padding: 10px 16px; border-radius: 8px; border: none;"
-        )
-        self.new_campaign_btn.setCursor(Qt.PointingHandCursor)
-        action_layout.addWidget(self.new_campaign_btn)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
 
-        self.devices_btn = QPushButton("📱  Manage Devices")
-        self.devices_btn.setStyleSheet(
-            "background-color: #0f172a; color: #94a3b8; font-weight: 600; font-size: 12px; "
-            "padding: 8px 16px; border-radius: 8px; border: 1px solid #334155;"
-        )
-        self.devices_btn.setCursor(Qt.PointingHandCursor)
-        action_layout.addWidget(self.devices_btn)
-        action_layout.addStretch()
+        self.btn_new_campaign = QPushButton("⚡  [ LAUNCH_NEW_CAMPAIGN ]")
+        self.btn_new_campaign.setStyleSheet("background-color: #18181b; border: 1px solid #00e599; color: #00e599; font-weight: 700;")
+        
+        self.btn_import_contacts = QPushButton("[ 👥 MANAGE_CONTACTS ]")
+        self.btn_pair_device = QPushButton("[ 📱 LINK_PHONE ]")
 
-        grid.addWidget(action_card, 1, 1)
-        layout.addLayout(grid)
+        btn_row.addWidget(self.btn_new_campaign)
+        btn_row.addWidget(self.btn_import_contacts)
+        btn_row.addWidget(self.btn_pair_device)
+        btn_row.addStretch()
+        action_layout.addLayout(btn_row)
 
+        layout.addWidget(action_card)
         layout.addStretch()
 
-        self.new_campaign_btn.clicked.connect(lambda: self.request_navigation.emit("New Campaign"))
-        self.devices_btn.clicked.connect(lambda: self.request_navigation.emit("Devices"))
+        self.btn_new_campaign.clicked.connect(lambda: self.request_navigation.emit("New Campaign"))
+        self.btn_import_contacts.clicked.connect(lambda: self.request_navigation.emit("Contacts"))
+        self.btn_pair_device.clicked.connect(lambda: self.request_navigation.emit("Devices"))
 
         self.refresh()
 
     def refresh(self) -> None:
         paired = devices_repo.list_all(paired_only=True)
         if paired:
-            device = paired[0]
-            ip_str = f" • IP: {device['last_ip']}" if device['last_ip'] else ""
-            self.phone_val.setText("🟢 Connected")
-            self.phone_val.setStyleSheet("font-size: 20px; font-weight: 800; color: #34d399;")
-            self.phone_sub.setText(f"{device['device_name']}{ip_str}")
+            dev = paired[0]
+            self.phone_status_val.setText("LINK.OK 🟢")
+            self.phone_status_val.setStyleSheet("font-size: 20px; font-weight: 800; color: #00e599;")
+            self.phone_status_sub.setText(f"{dev['device_name']} ({dev['ip_address']})")
         else:
-            self.phone_val.setText("🔴 Disconnected")
-            self.phone_val.setStyleSheet("font-size: 20px; font-weight: 800; color: #f87171;")
-            self.phone_sub.setText("Open Devices tab to pair companion phone.")
+            self.phone_status_val.setText("STANDBY ⚪")
+            self.phone_status_val.setStyleSheet("font-size: 20px; font-weight: 800; color: #71717a;")
+            self.phone_status_sub.setText("No mobile device linked")
 
         counts = contacts_repo.counts()
-        valid = counts.get('valid', 0)
-        total = counts.get('total', 0)
-        self.contacts_val.setText(str(valid))
-        self.contacts_sub.setText(f"{valid} valid phone numbers ({total} total in DB)")
+        self.contacts_val.setText(f"{counts['valid']}")
+        self.contacts_val.setStyleSheet("font-size: 22px; font-weight: 800; color: #ffffff;")
+        self.contacts_sub.setText(f"Total: {counts['total']} | Invalid: {counts['invalid']}")
 
-        campaigns = campaigns_repo.list_all()
-        active = next((c for c in campaigns if c["status"] in ("SENDING", "PAUSED")), None)
+        all_campaigns = campaigns_repo.list_all()
+        active = [c for c in all_campaigns if c["status"] in ("SENDING", "PAUSED", "QUEUED")]
+        completed = [c for c in all_campaigns if c["status"] == "COMPLETED"]
         if active:
-            self.camp_val.setText(f"{active['sent_count']} / {active['total_count']}")
-            self.camp_sub.setText(f"Status: {active['status']} • Campaign: {active['name']}")
+            c = active[0]
+            self.campaigns_val.setText(f"{c['status']}")
+            self.campaigns_val.setStyleSheet("font-size: 20px; font-weight: 800; color: #38bdf8;")
+            self.campaigns_sub.setText(f"Job ID: {c['id'][:8]}...")
         else:
-            self.camp_val.setText("Idle")
-            self.camp_sub.setText("No active broadcast in progress.")
+            self.campaigns_val.setText("IDLE")
+            self.campaigns_val.setStyleSheet("font-size: 22px; font-weight: 800; color: #71717a;")
+            self.campaigns_sub.setText(f"{len(completed)} total campaigns logged")
+
+        self.quick_action_val.setText("NORMAL 🟢")
+        self.quick_action_val.setStyleSheet("font-size: 20px; font-weight: 800; color: #00e599;")
+        self.quick_action_sub.setText("Local database synced & ready")

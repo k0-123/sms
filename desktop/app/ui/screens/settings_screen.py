@@ -35,21 +35,21 @@ class SettingsScreen(QWidget):
         # Scroll area
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background-color: #0f172a; }")
+        scroll.setStyleSheet("QScrollArea { border: none; background-color: #050505; }")
 
         container = QWidget()
-        container.setStyleSheet("background-color: #0f172a;")
+        container.setStyleSheet("background-color: #050505;")
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(32, 28, 32, 36)
-        layout.setSpacing(20)
+        layout.setContentsMargins(32, 22, 32, 32)
+        layout.setSpacing(18)
 
         # Header Title & Subtitle
         header = QVBoxLayout()
-        header.setSpacing(4)
-        title = QLabel("Application Settings")
-        title.setStyleSheet("font-size: 24px; font-weight: 800; color: #ffffff;")
-        subtitle = QLabel("Configure transmission intervals, default Excel column mappings, and app preferences.")
-        subtitle.setStyleSheet("font-size: 13px; color: #94a3b8;")
+        header.setSpacing(2)
+        title = QLabel("System Configuration")
+        title.setStyleSheet("font-size: 24px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;")
+        subtitle = QLabel("RADIO THROTTLE LIMITS • EXCEL INGESTION PRESETS • LOCAL DB CONTROLS")
+        subtitle.setStyleSheet("font-size: 10px; color: #71717a; font-weight: 700; letter-spacing: 1px;")
         header.addWidget(title)
         header.addWidget(subtitle)
         layout.addLayout(header)
@@ -59,49 +59,49 @@ class SettingsScreen(QWidget):
             card = QFrame()
             card.setStyleSheet(
                 "QFrame {"
-                "  background-color: #1e293b;"
-                "  border: 1px solid #334155;"
-                "  border-radius: 10px;"
-                "  padding: 16px;"
+                "  background-color: #0c0c0c;"
+                "  border: 1px solid #1f1f1f;"
+                "  border-radius: 8px;"
+                "  padding: 14px;"
                 "}"
             )
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(20, 16, 20, 16)
+            card_layout.setContentsMargins(18, 14, 18, 14)
             card_layout.setSpacing(12)
 
             sec_title = QLabel(title_text)
-            sec_title.setStyleSheet("font-size: 14px; font-weight: 700; color: #818cf8;")
+            sec_title.setStyleSheet("font-size: 11px; font-weight: 700; color: #a1a1aa; letter-spacing: 0.8px;")
             card_layout.addWidget(sec_title)
             return card, card_layout
 
         # High-contrast readable input styling
         input_style = (
-            "background-color: #0b1329; color: #ffffff; border: 1.5px solid #475569; "
-            "border-radius: 6px; padding: 8px 12px; font-size: 13px; font-weight: 600; min-height: 22px;"
+            "background-color: #080808; color: #ffffff; border: 1px solid #27272a; "
+            "border-radius: 5px; padding: 7px 12px; font-size: 12.5px; font-weight: 600; min-height: 20px;"
         )
 
         # 1. Phone Gateway Section
-        phone_card, phone_layout = make_section("📱 Phone Gateway Connection")
+        phone_card, phone_layout = make_section("HARDWARE GATEWAY LINK")
         phone_form = QFormLayout()
         phone_form.setSpacing(12)
         phone_form.setLabelAlignment(Qt.AlignLeft)
 
         self.connected_device_label = QLabel("No phone paired")
-        self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #38bdf8;")
+        self.connected_device_label.setStyleSheet("font-size: 13px; font-weight: 700; color: #00e599;")
         phone_form.addRow("Paired Companion Device:", self.connected_device_label)
 
-        self.test_connection_btn = QPushButton("📡  Test Connection to Phone")
+        self.test_connection_btn = QPushButton("[ 📡 TEST_LINK_PROBE ]")
         self.test_connection_btn.setFixedWidth(220)
         self.test_connection_btn.setStyleSheet(
-            "background-color: #334155; color: #ffffff; border: 1px solid #475569; "
-            "border-radius: 6px; padding: 8px 16px; font-weight: 600;"
+            "background-color: #18181b; color: #e4e4e7; border: 1px solid #27272a; "
+            "border-radius: 5px; padding: 7px 14px; font-weight: 600;"
         )
         phone_form.addRow("", self.test_connection_btn)
         phone_layout.addLayout(phone_form)
         layout.addWidget(phone_card)
 
         # 2. Transmission Limits Section
-        sending_card, sending_layout = make_section("⚡ SMS Transmission & Rate Limits")
+        sending_card, sending_layout = make_section("SMS TRANSMISSION & THROTTLE LIMITS")
         sending_form = QFormLayout()
         sending_form.setSpacing(12)
         sending_form.setLabelAlignment(Qt.AlignLeft)
@@ -109,27 +109,27 @@ class SettingsScreen(QWidget):
         self.rate_spin = QSpinBox()
         self.rate_spin.setRange(500, 60000)
         self.rate_spin.setSingleStep(500)
-        self.rate_spin.setSuffix(" ms between messages")
+        self.rate_spin.setSuffix(" ms between packets")
         self.rate_spin.setStyleSheet(input_style)
         self.rate_spin.setFixedWidth(300)
         sending_form.addRow("Default Sending Interval:", self.rate_spin)
 
         self.daily_limit_spin = QSpinBox()
         self.daily_limit_spin.setRange(1, 5000)
-        self.daily_limit_spin.setSuffix(" messages / day")
+        self.daily_limit_spin.setSuffix(" msgs / day quota")
         self.daily_limit_spin.setStyleSheet(input_style)
         self.daily_limit_spin.setFixedWidth(300)
-        sending_form.addRow("Daily SMS Limit (Carrier Safe):", self.daily_limit_spin)
+        sending_form.addRow("Daily Limit (Carrier Safe):", self.daily_limit_spin)
 
         self.auto_pause_check = QCheckBox("Auto-pause campaign immediately if phone disconnects")
-        self.auto_pause_check.setStyleSheet("color: #e2e8f0; font-size: 13px; font-weight: 500;")
+        self.auto_pause_check.setStyleSheet("color: #a1a1aa; font-size: 12.5px; font-weight: 500;")
         self.auto_pause_check.setChecked(True)
         sending_form.addRow("", self.auto_pause_check)
         sending_layout.addLayout(sending_form)
         layout.addWidget(sending_card)
 
         # 3. Excel Import Section
-        contacts_card, contacts_layout = make_section("📋 Default Excel Import Mappings")
+        contacts_card, contacts_layout = make_section("DATASET INGESTION PRESETS")
         contacts_form = QFormLayout()
         contacts_form.setSpacing(12)
         contacts_form.setLabelAlignment(Qt.AlignLeft)
@@ -155,16 +155,16 @@ class SettingsScreen(QWidget):
         layout.addWidget(contacts_card)
 
         # 4. Database Maintenance Section
-        db_card, db_layout = make_section("🗑️ Database Maintenance")
+        db_card, db_layout = make_section("PERSISTENCE & STORAGE MAINTENANCE")
         db_form = QFormLayout()
         db_form.setSpacing(12)
         db_form.setLabelAlignment(Qt.AlignLeft)
 
-        self.clear_data_btn = QPushButton("⚠️  Reset / Clear Local Database")
+        self.clear_data_btn = QPushButton("[ ⚠️ FLUSH_LOCAL_DATABASE ]")
         self.clear_data_btn.setFixedWidth(260)
         self.clear_data_btn.setStyleSheet(
-            "background-color: #450a0a; color: #fca5a5; border: 1.5px solid #991b1b; "
-            "border-radius: 6px; padding: 8px 16px; font-weight: 700;"
+            "background-color: #270909; color: #fca5a5; border: 1px solid #7f1d1d; "
+            "border-radius: 5px; padding: 7px 14px; font-weight: 700;"
         )
         db_form.addRow("Danger Zone:", self.clear_data_btn)
         db_layout.addLayout(db_form)
@@ -172,10 +172,10 @@ class SettingsScreen(QWidget):
 
         # Save Button Row
         btn_row = QHBoxLayout()
-        self.save_btn = QPushButton("💾  Save All Settings")
+        self.save_btn = QPushButton("[ 💾 COMMIT_CONFIGURATION ]")
         self.save_btn.setStyleSheet(
-            "background-color: #6366f1; color: #ffffff; font-weight: 700; font-size: 14px; "
-            "border: 1px solid #4f46e5; border-radius: 6px; padding: 10px 28px;"
+            "background-color: #18181b; color: #00e599; font-weight: 700; font-size: 13px; "
+            "border: 1px solid #00e599; border-radius: 5px; padding: 9px 24px;"
         )
         self.save_btn.setCursor(Qt.PointingHandCursor)
         btn_row.addWidget(self.save_btn)
