@@ -112,7 +112,17 @@ class CampaignWizardScreen(QWidget):
         )
         self.stack.setCurrentWidget(self.step_confirm)
 
-    def _on_start_sending(self, rate_limit_ms: int, daily_limit: int, campaign_type: str = "SMS", ring_duration_sec: int = 15) -> None:
+    def _on_start_sending(
+        self,
+        rate_limit_ms: int,
+        daily_limit: int,
+        campaign_type: str = "SMS",
+        ring_duration_sec: int = 15,
+        audio_path: str = "",
+    ) -> None:
+        import base64
+        import os
+
         self._campaign_type = campaign_type
         paired = devices_repo.list_all(paired_only=True)
         device_id = paired[0]["id"] if paired else None
@@ -128,7 +138,22 @@ class CampaignWizardScreen(QWidget):
             rate_limit_ms=rate_limit_ms,
             daily_limit=daily_limit,
             ring_duration_sec=ring_duration_sec,
+            audio_path=audio_path if (is_call and audio_path) else None,
         )
+
+        # Upload audio to phone before dispatch if audio is present
+        if is_call and audio_path and os.path.exists(audio_path) and self.network_client:
+            try:
+                with open(audio_path, "rb") as f:
+                    b64_data = base64.b64encode(f.read()).decode("ascii")
+                self.network_client.send_upload_call_audio(
+                    campaign_id=campaign_id,
+                    filename=os.path.basename(audio_path),
+                    audio_base64=b64_data,
+                )
+            except Exception:
+                pass
+
         for contact_id in self._selected_contact_ids:
             contact = contacts_repo.get(contact_id)
             if contact is None:

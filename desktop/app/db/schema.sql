@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
     rate_limit_ms     INTEGER NOT NULL DEFAULT 2000,
     daily_limit       INTEGER NOT NULL DEFAULT 100,
     ring_duration_sec INTEGER NOT NULL DEFAULT 15,
+    audio_path        TEXT,
     created_at        TEXT NOT NULL,
     updated_at        TEXT NOT NULL,
     completed_at      TEXT

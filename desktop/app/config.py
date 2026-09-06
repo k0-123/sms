@@ -17,6 +17,8 @@ DEFAULT_DAILY_LIMIT = 100  # phone-side daily SMS cap; remaining contacts auto-c
 DEFAULT_RING_DURATION_SEC = 15      # how long each call rings before auto-hangup
 DEFAULT_CALL_RATE_LIMIT_MS = 3000   # gap between consecutive calls
 DEFAULT_CALL_DAILY_LIMIT = 200      # phone-side daily call cap
+MAX_AUDIO_SIZE_MB = 10              # max MP3/WAV upload size
+ALLOWED_AUDIO_EXTENSIONS = ('.mp3', '.wav')
 
 INDIAN_MOBILE_REGEX = r"^(?:\+91|91)?([6-9]\d{9})$"
 

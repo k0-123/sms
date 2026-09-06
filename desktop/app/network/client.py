@@ -60,6 +60,7 @@ class NetworkClient(QObject):
     sms_status = Signal(str, str, object, object)  # message_id, status, error, sent_at
     call_job_ack = Signal(str)  # message_id
     call_status = Signal(str, str, object, object)  # message_id, status, error, ended_at
+    call_audio_uploaded = Signal(str, bool, str)  # campaign_id, success, error
     protocol_error = Signal(str, str)  # code, message
 
     def __init__(self, parent=None):
@@ -114,8 +115,12 @@ class NetworkClient(QObject):
         sim_slot: int = 0,
         rate_limit_ms: int = 3000,
         daily_limit: int = 200,
+        has_audio: bool = False,
     ) -> None:
-        self._send(protocol.call_job(message_id, campaign_id, phone_number, ring_duration_sec, sim_slot, rate_limit_ms, daily_limit))
+        self._send(protocol.call_job(message_id, campaign_id, phone_number, ring_duration_sec, sim_slot, rate_limit_ms, daily_limit, has_audio))
+
+    def send_upload_call_audio(self, campaign_id: str, filename: str, audio_base64: str) -> None:
+        self._send(protocol.upload_call_audio(campaign_id, filename, audio_base64))
 
     def send_pause(self) -> None:
         self._send(protocol.pause())
@@ -227,5 +232,11 @@ class NetworkClient(QObject):
             self.call_job_ack.emit(p.get("message_id", ""))
         elif env.type == protocol.CALL_STATUS:
             self.call_status.emit(p.get("message_id", ""), p.get("status", ""), p.get("error"), p.get("ended_at"))
+        elif env.type == protocol.UPLOAD_CALL_AUDIO_ACK:
+            self.call_audio_uploaded.emit(
+                p.get("campaign_id", ""),
+                p.get("success", False),
+                p.get("error", ""),
+            )
         elif env.type == protocol.ERROR:
             self.protocol_error.emit(p.get("code", ""), p.get("message", ""))

@@ -21,6 +21,10 @@ _COLUMN_MIGRATIONS: list[tuple[str, str]] = [
         "ALTER TABLE campaigns ADD COLUMN ring_duration_sec INTEGER NOT NULL DEFAULT 15",
         "campaigns.ring_duration_sec",
     ),
+    (
+        "ALTER TABLE campaigns ADD COLUMN audio_path TEXT",
+        "campaigns.audio_path",
+    ),
 ]
 
 

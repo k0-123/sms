@@ -148,8 +148,11 @@ class BridgeService : Service() {
 
             callJobDao.updateStatus(job.messageId, CallJobStatus.SENDING, null)
 
+            val audioFile = java.io.File(filesDir, "call_audio/${job.campaignId}.mp3")
+            val audioToPlay = if (audioFile.exists() && audioFile.length() > 0) audioFile else null
+
             val result = runCatching {
-                CallMaker.placeCall(this, job.phoneNumber, job.ringDurationSec)
+                CallMaker.placeCall(this, job.phoneNumber, job.ringDurationSec, audioToPlay)
             }
 
             result.onSuccess { callResult ->

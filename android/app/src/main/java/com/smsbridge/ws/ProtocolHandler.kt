@@ -8,6 +8,7 @@ import com.smsbridge.data.JobEntity
 import com.smsbridge.data.JobStatus
 import org.java_websocket.WebSocket
 import org.json.JSONObject
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -84,6 +85,7 @@ class ProtocolHandler(private val context: Context) {
             "heartbeat" -> handleHeartbeat(conn)
             "sms_job" -> handleSmsJob(payload, conn)
             "call_job" -> handleCallJob(payload, conn)
+            "upload_call_audio" -> handleUploadCallAudio(payload, conn)
             "pause" -> BridgeServiceControl.setPaused(true)
             "resume" -> BridgeServiceControl.setPaused(false)
             "cancel_campaign" -> handleCancelCampaign(payload)
@@ -163,6 +165,27 @@ class ProtocolHandler(private val context: Context) {
         val campaignId = payload.getString("campaign_id")
         jobDao.cancelPendingForCampaign(campaignId)
         callJobDao.cancelPendingForCampaign(campaignId)
+    }
+
+    private fun handleUploadCallAudio(payload: JSONObject, conn: WebSocket) {
+        val campaignId = payload.getString("campaign_id")
+        val b64 = payload.getString("audio_base64")
+        try {
+            val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+            val audioDir = File(context.filesDir, "call_audio").apply { mkdirs() }
+            val targetFile = File(audioDir, "${campaignId}.mp3")
+            targetFile.writeBytes(bytes)
+            val response = JSONObject()
+                .put("campaign_id", campaignId)
+                .put("success", true)
+            conn.send(envelope("upload_call_audio_ack", response))
+        } catch (e: Exception) {
+            val response = JSONObject()
+                .put("campaign_id", campaignId)
+                .put("success", false)
+                .put("error", e.message ?: "Failed to save audio file")
+            conn.send(envelope("upload_call_audio_ack", response))
+        }
     }
 
     private fun handleUnpair(payload: JSONObject) {

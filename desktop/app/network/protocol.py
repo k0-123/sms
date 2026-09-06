@@ -23,6 +23,8 @@ SMS_STATUS = "sms_status"
 CALL_JOB = "call_job"
 CALL_JOB_ACK = "call_job_ack"
 CALL_STATUS = "call_status"
+UPLOAD_CALL_AUDIO = "upload_call_audio"
+UPLOAD_CALL_AUDIO_ACK = "upload_call_audio_ack"
 PAUSE = "pause"
 RESUME = "resume"
 CANCEL_CAMPAIGN = "cancel_campaign"
@@ -102,6 +104,7 @@ def call_job(
     sim_slot: int = 0,
     rate_limit_ms: int = 3000,
     daily_limit: int = 200,
+    has_audio: bool = False,
 ) -> Envelope:
     return build(
         CALL_JOB,
@@ -113,6 +116,18 @@ def call_job(
             "sim_slot": sim_slot,
             "rate_limit_ms": rate_limit_ms,
             "daily_limit": daily_limit,
+            "has_audio": has_audio,
+        },
+    )
+
+
+def upload_call_audio(campaign_id: str, filename: str, audio_base64: str) -> Envelope:
+    return build(
+        UPLOAD_CALL_AUDIO,
+        {
+            "campaign_id": campaign_id,
+            "filename": filename,
+            "audio_base64": audio_base64,
         },
     )
 

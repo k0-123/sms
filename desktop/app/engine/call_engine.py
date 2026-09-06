@@ -62,6 +62,7 @@ class CallEngine(QObject):
         campaign = campaigns_repo.get(campaign_id)
         if campaign is None:
             return
+        has_audio = bool(campaign["audio_path"]) if "audio_path" in campaign.keys() else False
         while True:
             message = messages_repo.next_dispatchable(campaign_id)
             if message is None:
@@ -73,6 +74,7 @@ class CallEngine(QObject):
                 ring_duration_sec=campaign["ring_duration_sec"],
                 rate_limit_ms=campaign["rate_limit_ms"],
                 daily_limit=campaign["daily_limit"],
+                has_audio=has_audio,
             )
             messages_repo.mark_sending(message["id"])
             self.message_status_changed.emit(message["id"], "SENDING")

@@ -1,10 +1,13 @@
+import os
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QFileDialog,
     QFormLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QRadioButton,
     QSpinBox,
@@ -13,11 +16,13 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import (
+    ALLOWED_AUDIO_EXTENSIONS,
     DEFAULT_CALL_DAILY_LIMIT,
     DEFAULT_CALL_RATE_LIMIT_MS,
     DEFAULT_DAILY_LIMIT,
     DEFAULT_RATE_LIMIT_MS,
     DEFAULT_RING_DURATION_SEC,
+    MAX_AUDIO_SIZE_MB,
 )
 from app.repositories import devices_repo
 from app.services.message import sms_part_count
@@ -26,14 +31,15 @@ from app.services.message import sms_part_count
 class StepConfirm(QWidget):
     """Final review before dispatch. The user must explicitly click START.
 
-    Emits: start_sending(rate_limit_ms, daily_limit, campaign_type, ring_duration_sec)
+    Emits: start_sending(rate_limit_ms, daily_limit, campaign_type, ring_duration_sec, audio_path)
     """
 
-    start_sending = Signal(int, int, str, int)  # rate_limit_ms, daily_limit, campaign_type, ring_duration_sec
+    start_sending = Signal(int, int, str, int, str)  # rate_limit_ms, daily_limit, campaign_type, ring_duration_sec, audio_path
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._campaign_type = "SMS"
+        self._audio_path: str | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 28, 28, 28)
@@ -90,6 +96,39 @@ class StepConfirm(QWidget):
         self.type_hint.setWordWrap(True)
         type_layout.addWidget(self.type_hint)
         layout.addWidget(type_frame)
+
+        # ── Voice Audio Selection (for Voice Call campaigns) ──────────
+        self.audio_frame = QFrame()
+        self.audio_frame.setStyleSheet(
+            "QFrame { background-color: #121826; border: 1px solid #1e293b; border-radius: 10px; padding: 12px; }"
+        )
+        audio_layout = QVBoxLayout(self.audio_frame)
+        audio_layout.setSpacing(8)
+
+        audio_hdr = QLabel("🎙️  VOICE AUDIO MESSAGE (OPTIONAL MP3 / WAV)")
+        audio_hdr.setStyleSheet("font-size: 11px; font-weight: 700; color: #38bdf8; letter-spacing: 0.8px;")
+        audio_layout.addWidget(audio_hdr)
+
+        audio_btn_row = QHBoxLayout()
+        self.btn_select_audio = QPushButton("📁  Select MP3 / Audio File")
+        self.btn_select_audio.setStyleSheet("background-color: #2563eb; color: white; font-weight: 700; padding: 6px 16px;")
+        self.btn_clear_audio = QPushButton("✖ Clear")
+        self.btn_clear_audio.setStyleSheet("background-color: #334155; color: #cbd5e1; padding: 6px 12px;")
+        self.btn_clear_audio.setVisible(False)
+
+        self.audio_status_lbl = QLabel("No audio selected (Phone rings for awareness / missed call)")
+        self.audio_status_lbl.setStyleSheet("font-size: 12px; color: #94a3b8;")
+
+        audio_btn_row.addWidget(self.btn_select_audio)
+        audio_btn_row.addWidget(self.btn_clear_audio)
+        audio_btn_row.addWidget(self.audio_status_lbl)
+        audio_btn_row.addStretch()
+        audio_layout.addLayout(audio_btn_row)
+
+        self.btn_select_audio.clicked.connect(self._on_select_audio)
+        self.btn_clear_audio.clicked.connect(self._on_clear_audio)
+
+        layout.addWidget(self.audio_frame)
 
         # Summary Card
         self.summary_card = QFrame()
@@ -155,6 +194,37 @@ class StepConfirm(QWidget):
         # Initial visibility
         self._apply_type_visibility()
 
+    def _on_select_audio(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Call Announcement Audio",
+            "",
+            "Audio Files (*.mp3 *.wav);;All Files (*.*)",
+        )
+        if not path:
+            return
+        size_mb = os.path.getsize(path) / (1024 * 1024)
+        if size_mb > MAX_AUDIO_SIZE_MB:
+            QMessageBox.warning(
+                self,
+                "File Too Large",
+                f"The selected audio file is {size_mb:.1f} MB. Maximum allowed is {MAX_AUDIO_SIZE_MB} MB.",
+            )
+            return
+        self._audio_path = path
+        filename = os.path.basename(path)
+        self.audio_status_lbl.setText(f"✅ Loaded: {filename} ({size_mb:.2f} MB) — will play on speakerphone when answered")
+        self.audio_status_lbl.setStyleSheet("font-size: 12px; color: #00e599; font-weight: 700;")
+        self.btn_clear_audio.setVisible(True)
+        self._refresh_summary()
+
+    def _on_clear_audio(self) -> None:
+        self._audio_path = None
+        self.audio_status_lbl.setText("No audio selected (Phone rings for awareness / missed call)")
+        self.audio_status_lbl.setStyleSheet("font-size: 12px; color: #94a3b8;")
+        self.btn_clear_audio.setVisible(False)
+        self._refresh_summary()
+
     def _emit_start(self) -> None:
         ctype = "CALL" if self.radio_call.isChecked() else "SMS"
         self.start_sending.emit(
@@ -162,6 +232,7 @@ class StepConfirm(QWidget):
             self.daily_spin.value(),
             ctype,
             self.ring_spin.value(),
+            self._audio_path or "",
         )
 
     def _on_type_changed(self, btn_id: int, checked: bool) -> None:
@@ -177,6 +248,7 @@ class StepConfirm(QWidget):
         # Show/hide call-specific vs SMS-specific controls
         self.ring_label.setVisible(is_call)
         self.ring_spin.setVisible(is_call)
+        self.audio_frame.setVisible(is_call)
 
         if is_call:
             self.rate_spin.setValue(DEFAULT_CALL_RATE_LIMIT_MS)
@@ -190,13 +262,12 @@ class StepConfirm(QWidget):
                 "background-color: #7c3aed; color: white; font-weight: 800; font-size: 14px; padding: 12px 28px;"
             )
             self.type_hint.setText(
-                "📞 Voice Call Campaign — Your Android phone will dial each contact sequentially. "
-                "Calls ring for the configured duration then auto-hangup (missed call awareness). "
-                "Only one call runs at a time."
+                "📞 Voice Call Campaign — Your Android phone dials each contact sequentially. "
+                "If an MP3 is selected, the phone switches to speakerphone and plays your audio into the mic on answer, then hangs up."
             )
             self.limit_note.setText(
                 "ℹ️ Calls are placed one at a time using your phone's native dialer. "
-                "Each call will ring for the configured duration before auto-hangup. "
+                "When answered, speakerphone broadcasts your audio. "
                 "If the daily limit is reached, the phone pauses and continues tomorrow."
             )
         else:
@@ -220,7 +291,6 @@ class StepConfirm(QWidget):
             )
 
     def _refresh_summary(self) -> None:
-        # Re-generate summary text with stored values
         if hasattr(self, "_last_load_args"):
             self.load(**self._last_load_args)
 
@@ -249,10 +319,12 @@ class StepConfirm(QWidget):
             est_time_sec = contact_count * (ring_sec + 3)
             est_min = est_time_sec // 60
             est_sec = est_time_sec % 60
+            audio_info = f"<b>Audio File:</b> {os.path.basename(self._audio_path)}<br>" if self._audio_path else "<b>Mode:</b> Awareness Ring / Missed Call<br>"
             self.summary_label.setText(
-                f"<b>Campaign Type:</b>  📞 Voice Call (Missed Call Awareness)<br>"
+                f"<b>Campaign Type:</b>  📞 Voice Call<br>"
                 f"<b>Recipients:</b>  {contact_count} contact(s)<br>"
                 f"<b>Ring Duration:</b>  {ring_sec} seconds per call<br>"
+                f"{audio_info}"
                 f"<b>Estimated Time:</b>  ~{est_min}m {est_sec}s for all {contact_count} calls<br>"
                 f"<b>Gateway Phone:</b>  {device_name} ({status})<br><br>"
                 f"<b>Status:</b> {status_text}"

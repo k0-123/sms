@@ -16,6 +16,7 @@ def create(
     rate_limit_ms: int = DEFAULT_RATE_LIMIT_MS,
     daily_limit: int = DEFAULT_DAILY_LIMIT,
     ring_duration_sec: int = DEFAULT_RING_DURATION_SEC,
+    audio_path: Optional[str] = None,
 ) -> str:
     conn = get_connection()
     campaign_id = new_id()
@@ -24,10 +25,10 @@ def create(
         """INSERT INTO campaigns
            (id, name, campaign_type, template_id, message_body, device_id, status, auto_paused,
             total_count, sent_count, failed_count, rate_limit_ms, daily_limit, ring_duration_sec,
-            created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', 0, 0, 0, 0, ?, ?, ?, ?, ?)""",
+            audio_path, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', 0, 0, 0, 0, ?, ?, ?, ?, ?, ?)""",
         (campaign_id, name, campaign_type, template_id, message_body, device_id,
-         rate_limit_ms, daily_limit, ring_duration_sec, ts, ts),
+         rate_limit_ms, daily_limit, ring_duration_sec, audio_path, ts, ts),
     )
     conn.commit()
     return campaign_id
