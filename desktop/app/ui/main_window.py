@@ -43,13 +43,18 @@ class MainWindow(QMainWindow):
             "Dashboard": self.dashboard_screen,
             "Contacts": ContactsScreen(),
             "New Campaign": self.campaign_wizard_screen,
+            "Voice Call": self.campaign_wizard_screen,
             "Templates": TemplatesScreen(),
             "History": self.history_screen,
             "Devices": self.devices_screen,
             "Settings": self.settings_screen,
         }
+        added_widgets = set()
         for _, key in NAV_ITEMS:
-            self.stack.addWidget(self.screens[key])
+            w = self.screens[key]
+            if w not in added_widgets:
+                self.stack.addWidget(w)
+                added_widgets.add(w)
         layout.addWidget(self.stack, stretch=1)
 
         self.sidebar.navigated.connect(self._navigate)
@@ -97,7 +102,9 @@ class MainWindow(QMainWindow):
         elif screen_name == "Settings":
             self.settings_screen.reload()
         elif screen_name == "New Campaign":
-            self.campaign_wizard_screen.reset()
+            self.campaign_wizard_screen.reset(campaign_type="SMS")
+        elif screen_name == "Voice Call":
+            self.campaign_wizard_screen.reset(campaign_type="CALL")
         elif screen_name == "Contacts":
             self.screens["Contacts"].refresh()
         self.stack.setCurrentWidget(widget)

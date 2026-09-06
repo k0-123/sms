@@ -13,6 +13,7 @@ NAV_ITEMS = [
     ("[ DASHBOARD ]", "Dashboard"),
     ("[ CONTACTS ]", "Contacts"),
     ("[ NEW_CAMPAIGN ]", "New Campaign"),
+    ("[ VOICE_CALL ]", "Voice Call"),
     ("[ TEMPLATES ]", "Templates"),
     ("[ HISTORY ]", "History"),
     ("[ DEVICES ]", "Devices"),

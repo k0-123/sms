@@ -147,9 +147,9 @@ class CampaignWizardScreen(QWidget):
             else:
                 self.step_send_monitor.start(campaign_id, is_call=False)
 
-    def reset(self) -> None:
-        """Call to start a fresh 'New Campaign' flow from the Dashboard."""
+    def reset(self, campaign_type: str = "SMS") -> None:
+        """Call to start a fresh 'New Campaign' or 'Voice Call' flow."""
         self._selected_contact_ids = []
         self._message_body = ""
-        self._campaign_type = "SMS"
+        self._campaign_type = campaign_type
         self.stack.setCurrentWidget(self.step_import)

@@ -100,11 +100,15 @@ class DashboardScreen(QWidget):
 
         self.btn_new_campaign = QPushButton("⚡  [ LAUNCH_NEW_CAMPAIGN ]")
         self.btn_new_campaign.setStyleSheet("background-color: #18181b; border: 1px solid #00e599; color: #00e599; font-weight: 700;")
+
+        self.btn_voice_call = QPushButton("📞  [ START_VOICE_CALL ]")
+        self.btn_voice_call.setStyleSheet("background-color: #18181b; border: 1px solid #38bdf8; color: #38bdf8; font-weight: 700;")
         
         self.btn_import_contacts = QPushButton("[ 👥 MANAGE_CONTACTS ]")
         self.btn_pair_device = QPushButton("[ 📱 LINK_PHONE ]")
 
         btn_row.addWidget(self.btn_new_campaign)
+        btn_row.addWidget(self.btn_voice_call)
         btn_row.addWidget(self.btn_import_contacts)
         btn_row.addWidget(self.btn_pair_device)
         btn_row.addStretch()
@@ -114,6 +118,7 @@ class DashboardScreen(QWidget):
         layout.addStretch()
 
         self.btn_new_campaign.clicked.connect(lambda: self.request_navigation.emit("New Campaign"))
+        self.btn_voice_call.clicked.connect(lambda: self.request_navigation.emit("Voice Call"))
         self.btn_import_contacts.clicked.connect(lambda: self.request_navigation.emit("Contacts"))
         self.btn_pair_device.clicked.connect(lambda: self.request_navigation.emit("Devices"))
 
