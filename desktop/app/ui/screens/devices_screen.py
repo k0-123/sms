@@ -127,15 +127,29 @@ class DevicesScreen(QWidget):
         self.discovered_list.addItem(item)
 
     # -- pairing ---------------------------------------------------------
+    def _get_default_gateway_ip(self) -> str:
+        import subprocess, re
+        try:
+            output = subprocess.check_output(['route', 'print', '0.0.0.0'], text=True, timeout=2)
+            match = re.search(r'0\.0\.0\.0\s+0\.0\.0\.0\s+([0-9\.]+)', output)
+            if match:
+                return match.group(1)
+        except Exception:
+            pass
+        return "192.168.43.1"
+
     def _pair_manual(self) -> None:
+        default_ip = self._get_default_gateway_ip()
         ip, ok = QInputDialog.getText(
-            self, "Phone IP Address", "Enter your Phone's Wi-Fi IP address (e.g. 192.168.1.19):"
+            self, "Phone IP Address", 
+            f"Enter your Phone's IP address:\n(Hotspot Gateway detected: {default_ip})",
+            text=default_ip
         )
         if not ok or not ip:
             return
         ip = ip.strip()
         code, ok = QInputDialog.getText(
-            self, "Enter Pairing Code", "Enter the 6-digit code shown on the phone (e.g. 634681):"
+            self, "Enter Pairing Code", "Enter the 6-digit code shown on your phone:"
         )
         if not ok or not code:
             return
