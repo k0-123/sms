@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
+    private lateinit var ipAddressText: TextView
     private lateinit var pairingCodeText: TextView
     private lateinit var pairingHintText: TextView
     private lateinit var toggleButton: Button
@@ -49,6 +50,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         statusText = findViewById(R.id.statusText)
+        ipAddressText = findViewById(R.id.ipAddressText)
         pairingCodeText = findViewById(R.id.pairingCodeText)
         pairingHintText = findViewById(R.id.pairingHintText)
         toggleButton = findViewById(R.id.toggleServiceButton)
@@ -127,6 +129,9 @@ class MainActivity : AppCompatActivity() {
             toggleButton.text = if (running) "Stop Bridge" else "Start Bridge"
             statusText.text = if (running) "Status: 🟢 Running" else "Status: 🔴 Stopped"
 
+            val ipStr = getActiveIpAddresses()
+            ipAddressText.text = if (running) "IP: $ipStr:8765" else "IP: $ipStr (Bridge Stopped)"
+
             val code = PairingManager.currentCode()
             if (running && code != null) {
                 pairingCodeText.text = code
@@ -156,6 +161,30 @@ class MainActivity : AppCompatActivity() {
             )
 
             delay(2000)
+        }
+    }
+
+    private fun getActiveIpAddresses(): String {
+        return try {
+            val ips = mutableListOf<String>()
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val iface = interfaces.nextElement()
+                if (iface.isLoopback || !iface.isUp) continue
+                val addrs = iface.inetAddresses
+                while (addrs.hasMoreElements()) {
+                    val addr = addrs.nextElement()
+                    if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
+                        val host = addr.hostAddress ?: continue
+                        if (!host.startsWith("127.")) {
+                            ips.add(host)
+                        }
+                    }
+                }
+            }
+            if (ips.isEmpty()) "No Network" else ips.first()
+        } catch (e: Exception) {
+            "Unknown"
         }
     }
 }

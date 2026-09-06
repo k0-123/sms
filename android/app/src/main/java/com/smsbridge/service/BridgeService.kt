@@ -51,16 +51,26 @@ class BridgeService : Service() {
         deviceId = getOrCreateDeviceId(this)
         deviceName = "${Build.MANUFACTURER} ${Build.MODEL}"
 
-        startForeground(NOTIFICATION_ID, buildNotification("Starting..."))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification("Starting..."),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, buildNotification("Starting..."))
+        }
 
         val server = WsServer(this)
         server.start()
         wsServer = server
 
-        val advertiser = NsdAdvertiser(this)
         val code = PairingManager.generateCode()
-        advertiser.start(deviceId, deviceName)
-        nsdAdvertiser = advertiser
+        runCatching {
+            val advertiser = NsdAdvertiser(this)
+            advertiser.start(deviceId, deviceName)
+            nsdAdvertiser = advertiser
+        }
 
         BridgeServiceControl.onNewJob = { smsWakeChannel.trySend(Unit) }
         BridgeServiceControl.onNewCallJob = { callWakeChannel.trySend(Unit) }

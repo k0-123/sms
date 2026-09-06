@@ -67,9 +67,48 @@ class DeviceDiscovery(QObject):
             on_remove=lambda name: self.device_lost.emit(name),
         )
         self._browser = ServiceBrowser(self._zeroconf, SERVICE_TYPE, listener)
+        self._probe_hotspot_gateway()
+
+    def _probe_hotspot_gateway(self) -> None:
+        import socket
+        import subprocess
+        import re
+        import threading
+
+        def probe():
+            candidates = set()
+            try:
+                out = subprocess.check_output(['route', 'print', '0.0.0.0'], text=True, timeout=2)
+                match = re.search(r'0\.0\.0\.0\s+0\.0\.0\.0\s+([0-9\.]+)', out)
+                if match:
+                    candidates.add(match.group(1))
+            except Exception:
+                pass
+            candidates.add("192.168.43.1")
+
+            for ip in candidates:
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(1.2)
+                    s.connect((ip, 8765))
+                    s.close()
+                    device = DiscoveredDevice(
+                        name=f"Android Hotspot ({ip})",
+                        address=ip,
+                        port=8765,
+                        device_name="Android Phone (Hotspot)",
+                        pairing_required=True,
+                    )
+                    self.device_found.emit(device)
+                    break
+                except Exception:
+                    pass
+
+        threading.Thread(target=probe, daemon=True).start()
 
     def stop(self) -> None:
         if self._zeroconf is not None:
             self._zeroconf.close()
             self._zeroconf = None
             self._browser = None
+
