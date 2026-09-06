@@ -58,6 +58,8 @@ class NetworkClient(QObject):
     heartbeat_ack = Signal(object, int)  # battery_pct (float|None), queue_depth
     sms_job_ack = Signal(str)  # message_id
     sms_status = Signal(str, str, object, object)  # message_id, status, error, sent_at
+    call_job_ack = Signal(str)  # message_id
+    call_status = Signal(str, str, object, object)  # message_id, status, error, ended_at
     protocol_error = Signal(str, str)  # code, message
 
     def __init__(self, parent=None):
@@ -102,6 +104,18 @@ class NetworkClient(QObject):
         daily_limit: int = 100,
     ) -> None:
         self._send(protocol.sms_job(message_id, campaign_id, phone_number, text, sim_slot, rate_limit_ms, daily_limit))
+
+    def send_call_job(
+        self,
+        message_id: str,
+        campaign_id: str,
+        phone_number: str,
+        ring_duration_sec: int = 15,
+        sim_slot: int = 0,
+        rate_limit_ms: int = 3000,
+        daily_limit: int = 200,
+    ) -> None:
+        self._send(protocol.call_job(message_id, campaign_id, phone_number, ring_duration_sec, sim_slot, rate_limit_ms, daily_limit))
 
     def send_pause(self) -> None:
         self._send(protocol.pause())
@@ -209,5 +223,9 @@ class NetworkClient(QObject):
             self.sms_job_ack.emit(p.get("message_id", ""))
         elif env.type == protocol.SMS_STATUS:
             self.sms_status.emit(p.get("message_id", ""), p.get("status", ""), p.get("error"), p.get("sent_at"))
+        elif env.type == protocol.CALL_JOB_ACK:
+            self.call_job_ack.emit(p.get("message_id", ""))
+        elif env.type == protocol.CALL_STATUS:
+            self.call_status.emit(p.get("message_id", ""), p.get("status", ""), p.get("error"), p.get("ended_at"))
         elif env.type == protocol.ERROR:
             self.protocol_error.emit(p.get("code", ""), p.get("message", ""))

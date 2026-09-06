@@ -106,17 +106,40 @@ class StepImport(QWidget):
         self.file_label.setText(f"📄 {path}")
         self.file_label.setStyleSheet("color: #38bdf8; font-weight: 600;")
 
-        headers = list(self._df.columns)
+        headers = [str(c) for c in self._df.columns]
         mapping = detect_columns(self._df)
-        for combo, key in ((self.name_combo, "name"), (self.phone_combo, "phone"), (self.email_combo, "email")):
-            combo.blockSignals(True)
-            combo.clear()
-            if key == "email":
-                combo.addItem("")
-            combo.addItems(headers)
-            if mapping[key]:
-                combo.setCurrentText(mapping[key])
-            combo.blockSignals(False)
+
+        self.name_combo.blockSignals(True)
+        self.name_combo.clear()
+        self.name_combo.addItem("(None - Number Only)", None)
+        for h in headers:
+            self.name_combo.addItem(h, h)
+        if mapping.get("name"):
+            self.name_combo.setCurrentText(str(mapping["name"]))
+        else:
+            self.name_combo.setCurrentIndex(0)
+        self.name_combo.blockSignals(False)
+
+        self.phone_combo.blockSignals(True)
+        self.phone_combo.clear()
+        for h in headers:
+            self.phone_combo.addItem(h, h)
+        if mapping.get("phone"):
+            self.phone_combo.setCurrentText(str(mapping["phone"]))
+        elif headers:
+            self.phone_combo.setCurrentIndex(0)
+        self.phone_combo.blockSignals(False)
+
+        self.email_combo.blockSignals(True)
+        self.email_combo.clear()
+        self.email_combo.addItem("(Optional - None)", None)
+        for h in headers:
+            self.email_combo.addItem(h, h)
+        if mapping.get("email"):
+            self.email_combo.setCurrentText(str(mapping["email"]))
+        else:
+            self.email_combo.setCurrentIndex(0)
+        self.email_combo.blockSignals(False)
 
         self.import_btn.setEnabled(True)
         self._refresh_preview()
@@ -127,7 +150,7 @@ class StepImport(QWidget):
         headers = list(self._df.columns)
         preview_rows = self._df.head(5)
         self.preview_table.setColumnCount(len(headers))
-        self.preview_table.setHorizontalHeaderLabels(headers)
+        self.preview_table.setHorizontalHeaderLabels([str(h) for h in headers])
         self.preview_table.setRowCount(len(preview_rows))
         for r, (_, row) in enumerate(preview_rows.iterrows()):
             for c, header in enumerate(headers):
@@ -136,18 +159,25 @@ class StepImport(QWidget):
     def _do_import(self) -> None:
         if self._df is None:
             return
-        name_col = self.name_combo.currentText()
         phone_col = self.phone_combo.currentText()
-        if not name_col or not phone_col:
-            QMessageBox.warning(self, "Missing mapping", "Please select both a Name and Phone column.")
+        if not phone_col:
+            QMessageBox.warning(self, "Missing mapping", "Please select a Phone Number column.")
             return
-        email_col = self.email_combo.currentText() or None
+
+        name_col = self.name_combo.currentText()
+        if name_col in ("(None - Number Only)", "(None)", "", None):
+            name_col = None
+
+        email_col = self.email_combo.currentText()
+        if email_col in ("(Optional - None)", "", None):
+            email_col = None
+
         column_mapping = {"name": name_col, "phone": phone_col}
         if email_col:
             column_mapping["email"] = email_col
 
         try:
-            result = import_contacts(self._df, column_mapping, source_file=self._file_path)
+            result = import_contacts(self._df, column_mapping=column_mapping, source_file=self._file_path)
         except Exception as exc:
             QMessageBox.critical(self, "Import failed", f"Could not import contacts: {exc}")
             return

@@ -41,8 +41,8 @@ class HistoryScreen(QWidget):
         camp_lbl.setStyleSheet("font-size: 10px; color: #71717a; font-weight: 700; letter-spacing: 0.8px;")
         layout.addWidget(camp_lbl)
         self.campaigns_table = QTableWidget()
-        self.campaigns_table.setColumnCount(5)
-        self.campaigns_table.setHorizontalHeaderLabels(["TIMESTAMP", "MANIFEST NAME", "TOTAL TARGETS", "SENT (OK)", "FAILED (ERR)"])
+        self.campaigns_table.setColumnCount(6)
+        self.campaigns_table.setHorizontalHeaderLabels(["TIMESTAMP", "TYPE", "MANIFEST NAME", "TOTAL TARGETS", "SENT (OK)", "FAILED (ERR)"])
         self.campaigns_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.campaigns_table.itemSelectionChanged.connect(self._on_campaign_selected)
         layout.addWidget(self.campaigns_table, stretch=2)
@@ -74,11 +74,14 @@ class HistoryScreen(QWidget):
         self.campaigns_table.setRowCount(len(campaigns))
         self._campaign_ids = []
         for r, c in enumerate(campaigns):
+            ctype = c["campaign_type"] if "campaign_type" in c.keys() else "SMS"
+            type_icon = "📞 CALL" if ctype == "CALL" else "📱 SMS"
             self.campaigns_table.setItem(r, 0, QTableWidgetItem((c["created_at"] or "")[:19].replace("T", " ")))
-            self.campaigns_table.setItem(r, 1, QTableWidgetItem(c["name"]))
-            self.campaigns_table.setItem(r, 2, QTableWidgetItem(str(c["total_count"])))
-            self.campaigns_table.setItem(r, 3, QTableWidgetItem(f"✅ {c['sent_count']}"))
-            self.campaigns_table.setItem(r, 4, QTableWidgetItem(f"❌ {c['failed_count']}" if c['failed_count'] > 0 else "0"))
+            self.campaigns_table.setItem(r, 1, QTableWidgetItem(type_icon))
+            self.campaigns_table.setItem(r, 2, QTableWidgetItem(c["name"]))
+            self.campaigns_table.setItem(r, 3, QTableWidgetItem(str(c["total_count"])))
+            self.campaigns_table.setItem(r, 4, QTableWidgetItem(f"✅ {c['sent_count']}"))
+            self.campaigns_table.setItem(r, 5, QTableWidgetItem(f"❌ {c['failed_count']}" if c['failed_count'] > 0 else "0"))
             self._campaign_ids.append(c["id"])
 
     def _on_campaign_selected(self) -> None:

@@ -2,7 +2,7 @@
 import sqlite3
 from typing import Optional
 
-from app.config import DEFAULT_DAILY_LIMIT, DEFAULT_RATE_LIMIT_MS
+from app.config import DEFAULT_DAILY_LIMIT, DEFAULT_RATE_LIMIT_MS, DEFAULT_RING_DURATION_SEC
 from app.db.connection import get_connection
 from app.repositories._util import new_id, now_iso
 
@@ -10,20 +10,24 @@ from app.repositories._util import new_id, now_iso
 def create(
     name: str,
     message_body: str,
+    campaign_type: str = "SMS",
     template_id: Optional[str] = None,
     device_id: Optional[str] = None,
     rate_limit_ms: int = DEFAULT_RATE_LIMIT_MS,
     daily_limit: int = DEFAULT_DAILY_LIMIT,
+    ring_duration_sec: int = DEFAULT_RING_DURATION_SEC,
 ) -> str:
     conn = get_connection()
     campaign_id = new_id()
     ts = now_iso()
     conn.execute(
         """INSERT INTO campaigns
-           (id, name, template_id, message_body, device_id, status, auto_paused,
-            total_count, sent_count, failed_count, rate_limit_ms, daily_limit, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'DRAFT', 0, 0, 0, 0, ?, ?, ?, ?)""",
-        (campaign_id, name, template_id, message_body, device_id, rate_limit_ms, daily_limit, ts, ts),
+           (id, name, campaign_type, template_id, message_body, device_id, status, auto_paused,
+            total_count, sent_count, failed_count, rate_limit_ms, daily_limit, ring_duration_sec,
+            created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', 0, 0, 0, 0, ?, ?, ?, ?, ?)""",
+        (campaign_id, name, campaign_type, template_id, message_body, device_id,
+         rate_limit_ms, daily_limit, ring_duration_sec, ts, ts),
     )
     conn.commit()
     return campaign_id

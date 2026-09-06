@@ -49,13 +49,26 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:text="Pending: 0" />
+        android:text="SMS Pending: 0" />
 
     <TextView
         android:id="@+id/sentText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Sent: 0" />
+        android:text="SMS Sent: 0" />
+
+    <TextView
+        android:id="@+id/callPendingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Calls Queued: 0" />
+
+    <TextView
+        android:id="@+id/callSentText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Calls Done: 0" />
 
     <TextView
         android:layout_width="wrap_content"

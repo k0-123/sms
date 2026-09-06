@@ -46,3 +46,33 @@ def test_import_never_drops_rows_all_persisted(tmp_path):
     result = import_contacts(path, df, name_col="Name", phone_col="Phone Number")
     assert len(result.rows) == 6
     assert all(r["contact_id"] for r in result.rows)
+
+
+def test_import_contacts_number_only(tmp_path):
+    run_migrations()
+    df = pd.DataFrame({"Phone": ["9876543220", "9876543221", "12345"]})
+    path = tmp_path / "numbers_only.csv"
+    df.to_csv(path, index=False)
+    
+    loaded = read_excel(str(path))
+    mapping = detect_columns(loaded)
+    result = import_contacts(loaded, mapping, source_file=str(path))
+    
+    assert result.total == 3
+    assert result.valid == 2
+    assert result.invalid == 1
+    assert result.duplicates == 0
+
+
+def test_import_contacts_with_mapping_and_source_file_kwarg(tmp_path):
+    run_migrations()
+    df = pd.DataFrame({"Mobile": ["9876543230", "9876543231"]})
+    path = tmp_path / "mobiles.xlsx"
+    df.to_excel(path, index=False, engine="openpyxl")
+    
+    loaded = read_excel(str(path))
+    result = import_contacts(loaded, column_mapping={"phone": "Mobile"}, source_file=str(path))
+    
+    assert result.total == 2
+    assert result.valid == 2
+

@@ -50,11 +50,35 @@ def read_excel(file_path: str) -> pd.DataFrame:
 
 
 def detect_columns(df: pd.DataFrame) -> dict:
-    headers = list(df.columns)
+    headers = [str(c) for c in df.columns]
+    name = _best_match(headers, _NAME_KEYWORDS)
+    phone = _best_match(headers, _PHONE_KEYWORDS)
+    email = _best_match(headers, _EMAIL_KEYWORDS)
+
+    # If phone is not matched by keywords, test column values for phone-like content
+    if not phone and len(headers) > 0:
+        import re
+        for col in df.columns:
+            if str(col) == name or str(col) == email:
+                continue
+            sample_vals = df[col].dropna().head(5)
+            numeric_count = sum(
+                1 for v in sample_vals
+                if re.sub(r"[^\d]", "", str(v)).isdigit() and len(re.sub(r"[^\d]", "", str(v))) >= 8
+            )
+            if numeric_count > 0:
+                phone = str(col)
+                break
+        # Fallback to single column if only 1 column is present
+        if not phone and len(headers) == 1:
+            phone = headers[0]
+            if name == phone:
+                name = None
+
     return {
-        "name": _best_match(headers, _NAME_KEYWORDS),
-        "phone": _best_match(headers, _PHONE_KEYWORDS),
-        "email": _best_match(headers, _EMAIL_KEYWORDS),
+        "name": name,
+        "phone": phone,
+        "email": email,
     }
 
 
@@ -68,18 +92,96 @@ class ImportResult:
 
 
 def import_contacts(
-    file_path: str, df: pd.DataFrame, name_col: str, phone_col: str, email_col: str | None = None
+    *args,
+    file_path: str | None = None,
+    df: pd.DataFrame | None = None,
+    name_col: str | None = None,
+    phone_col: str | None = None,
+    email_col: str | None = None,
+    column_mapping: dict | None = None,
+    source_file: str | None = None,
+    **kwargs,
 ) -> ImportResult:
+    """Imports contacts from a pandas DataFrame or file path.
+
+    Supports multiple calling conventions:
+      - import_contacts(file_path, df, name_col, phone_col, email_col=None)
+      - import_contacts(df, column_mapping, source_file=path)
+      - import_contacts(df, name_col=..., phone_col=..., source_file=...)
+      - import_contacts(file_path=path, df=df, ...)
+    """
+    # Parse positional arguments
+    if len(args) >= 1:
+        if isinstance(args[0], pd.DataFrame):
+            df = args[0]
+            if len(args) >= 2:
+                if isinstance(args[1], dict):
+                    column_mapping = args[1]
+                elif isinstance(args[1], (str, type(None))):
+                    name_col = args[1]
+                    if len(args) >= 3 and isinstance(args[2], (str, type(None))):
+                        phone_col = args[2]
+                    if len(args) >= 4 and isinstance(args[3], (str, type(None))):
+                        email_col = args[3]
+        elif isinstance(args[0], str):
+            file_path = args[0]
+            if len(args) >= 2 and isinstance(args[1], pd.DataFrame):
+                df = args[1]
+                if len(args) >= 3:
+                    if isinstance(args[2], dict):
+                        column_mapping = args[2]
+                    elif isinstance(args[2], (str, type(None))):
+                        name_col = args[2]
+                        if len(args) >= 4 and isinstance(args[3], (str, type(None))):
+                            phone_col = args[3]
+                        if len(args) >= 5 and isinstance(args[4], (str, type(None))):
+                            email_col = args[4]
+
+    if column_mapping:
+        if name_col is None:
+            name_col = column_mapping.get("name")
+        if phone_col is None:
+            phone_col = column_mapping.get("phone")
+        if email_col is None:
+            email_col = column_mapping.get("email")
+
+    resolved_source_file = source_file or file_path or kwargs.get("source_path") or "contacts_file"
+    source_filename = os.path.basename(resolved_source_file)
+
+    if df is None:
+        if file_path:
+            df = read_excel(file_path)
+        else:
+            raise ValueError("DataFrame or valid file path must be provided to import_contacts")
+
+    # If phone_col is still not resolved, attempt auto-detection
+    if not phone_col:
+        detected = detect_columns(df)
+        phone_col = detected.get("phone") or (list(df.columns)[0] if len(df.columns) > 0 else "Phone")
+
+    # Clean up column names if "(None)" or empty
+    if name_col in ("", "(None)", "(None - Number Only)", None):
+        name_col = None
+
     result = ImportResult()
     seen_phones: dict[str, int] = {}  # phone_e164 -> row index of canonical (first) occurrence
-    source_file = os.path.basename(file_path)
 
     for idx, row in df.iterrows():
         result.total += 1
-        name = _cell(row.get(name_col))
-        phone_raw = _cell(row.get(phone_col))
-        email = _cell(row.get(email_col)) if email_col else None
-        extra = {k: v for k, v in row.items() if k not in (name_col, phone_col, email_col)}
+        phone_raw = _cell(row.get(phone_col)) if phone_col and phone_col in row else ""
+
+        # Handle contact name:
+        # If a name column was explicitly mapped, use value from row
+        # If no name column was mapped (number-only mode), default to phone_raw so it passes validation
+        if name_col is not None and name_col in row:
+            name = _cell(row.get(name_col))
+        elif name_col is None:
+            name = phone_raw or "Contact"
+        else:
+            name = ""
+
+        email = _cell(row.get(email_col)) if email_col and email_col in row else None
+        extra = {str(k): v for k, v in row.items() if k not in (name_col, phone_col, email_col)}
 
         is_valid, phone_e164, error = validate_contact(name, phone_raw)
 
@@ -101,14 +203,14 @@ def import_contacts(
             phone_e164=phone_e164 or "",
             email=email or None,
             extra_json=json.dumps(extra, default=str) if extra else None,
-            source_file=source_file,
+            source_file=source_filename,
             is_valid=is_valid,
             validation_error=error,
         )
 
         if is_valid:
             result.valid += 1
-        elif error and error.startswith("Duplicate") or error == "Already exists in contacts":
+        elif error and (error.startswith("Duplicate") or error == "Already exists in contacts"):
             result.duplicates += 1
         else:
             result.invalid += 1

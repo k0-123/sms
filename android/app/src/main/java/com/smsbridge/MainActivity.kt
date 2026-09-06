@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.smsbridge.data.AppDatabase
+import com.smsbridge.data.CallJobStatus
 import com.smsbridge.data.JobStatus
 import com.smsbridge.data.PairedDeviceEntity
 import com.smsbridge.service.BridgeService
@@ -29,6 +30,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toggleButton: Button
     private lateinit var pendingText: TextView
     private lateinit var sentText: TextView
+    private lateinit var callPendingText: TextView
+    private lateinit var callSentText: TextView
     private lateinit var pairedDevicesList: ListView
 
     private var pairedDevices: List<PairedDeviceEntity> = emptyList()
@@ -36,7 +39,7 @@ class MainActivity : AppCompatActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        if (results[Manifest.permission.SEND_SMS] == true) {
+        if (results[Manifest.permission.SEND_SMS] == true || results[Manifest.permission.CALL_PHONE] == true) {
             startBridge()
         }
     }
@@ -51,6 +54,8 @@ class MainActivity : AppCompatActivity() {
         toggleButton = findViewById(R.id.toggleServiceButton)
         pendingText = findViewById(R.id.pendingText)
         sentText = findViewById(R.id.sentText)
+        callPendingText = findViewById(R.id.callPendingText)
+        callSentText = findViewById(R.id.callSentText)
         pairedDevicesList = findViewById(R.id.pairedDevicesList)
 
         toggleButton.setOnClickListener {
@@ -71,7 +76,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestPermissionsAndStart() {
-        val permissions = mutableListOf(Manifest.permission.SEND_SMS, Manifest.permission.READ_PHONE_STATE)
+        val permissions = mutableListOf(
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.CALL_PHONE,
+            Manifest.permission.READ_CALL_LOG,
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            permissions.add(Manifest.permission.ANSWER_PHONE_CALLS)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -107,6 +120,7 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun refreshLoop() {
         val jobDao = AppDatabase.get(this).jobDao()
+        val callJobDao = AppDatabase.get(this).callJobDao()
         val deviceDao = AppDatabase.get(this).pairedDeviceDao()
         while (true) {
             val running = BridgeService.isRunning()
@@ -123,8 +137,17 @@ class MainActivity : AppCompatActivity() {
                 pairingHintText.visibility = android.view.View.GONE
             }
 
-            pendingText.text = "Pending: ${jobDao.countByStatus(JobStatus.PENDING) + jobDao.countByStatus(JobStatus.SENDING)}"
-            sentText.text = "Sent: ${jobDao.countByStatus(JobStatus.SENT) + jobDao.countByStatus(JobStatus.DELIVERED)}"
+            // SMS stats
+            pendingText.text = "SMS Pending: ${jobDao.countByStatus(JobStatus.PENDING) + jobDao.countByStatus(JobStatus.SENDING)}"
+            sentText.text = "SMS Sent: ${jobDao.countByStatus(JobStatus.SENT) + jobDao.countByStatus(JobStatus.DELIVERED)}"
+
+            // Call stats
+            val callPending = callJobDao.countByStatus(CallJobStatus.PENDING) + callJobDao.countByStatus(CallJobStatus.SENDING)
+            val callCompleted = callJobDao.countByStatus(CallJobStatus.SENT) +
+                                callJobDao.countByStatus(CallJobStatus.ANSWERED) +
+                                callJobDao.countByStatus(CallJobStatus.NO_ANSWER)
+            callPendingText.text = "Calls Queued: $callPending"
+            callSentText.text = "Calls Done: $callCompleted"
 
             pairedDevices = deviceDao.listAll()
             pairedDevicesList.adapter = ArrayAdapter(

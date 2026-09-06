@@ -20,6 +20,9 @@ HEARTBEAT_ACK = "heartbeat_ack"
 SMS_JOB = "sms_job"
 SMS_JOB_ACK = "sms_job_ack"
 SMS_STATUS = "sms_status"
+CALL_JOB = "call_job"
+CALL_JOB_ACK = "call_job_ack"
+CALL_STATUS = "call_status"
 PAUSE = "pause"
 RESUME = "resume"
 CANCEL_CAMPAIGN = "cancel_campaign"
@@ -85,6 +88,29 @@ def sms_job(
             "sim_slot": sim_slot,
             # Phone-side pacing config, carried on every job so the Android app
             # can enforce it without tracking separate per-campaign state.
+            "rate_limit_ms": rate_limit_ms,
+            "daily_limit": daily_limit,
+        },
+    )
+
+
+def call_job(
+    message_id: str,
+    campaign_id: str,
+    phone_number: str,
+    ring_duration_sec: int = 15,
+    sim_slot: int = 0,
+    rate_limit_ms: int = 3000,
+    daily_limit: int = 200,
+) -> Envelope:
+    return build(
+        CALL_JOB,
+        {
+            "message_id": message_id,
+            "campaign_id": campaign_id,
+            "phone_number": phone_number,
+            "ring_duration_sec": ring_duration_sec,
+            "sim_slot": sim_slot,
             "rate_limit_ms": rate_limit_ms,
             "daily_limit": daily_limit,
         },

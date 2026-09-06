@@ -38,22 +38,24 @@ CREATE TABLE IF NOT EXISTS devices (
 );
 
 CREATE TABLE IF NOT EXISTS campaigns (
-    id             TEXT PRIMARY KEY,
-    name           TEXT NOT NULL,
-    template_id    TEXT REFERENCES templates(id) ON DELETE SET NULL,
-    message_body   TEXT NOT NULL,
-    device_id      TEXT REFERENCES devices(id),
-    status         TEXT NOT NULL DEFAULT 'DRAFT',
-    auto_paused    INTEGER NOT NULL DEFAULT 0,
-    pause_reason   TEXT,
-    total_count    INTEGER NOT NULL DEFAULT 0,
-    sent_count     INTEGER NOT NULL DEFAULT 0,
-    failed_count   INTEGER NOT NULL DEFAULT 0,
-    rate_limit_ms  INTEGER NOT NULL DEFAULT 2000,
-    daily_limit    INTEGER NOT NULL DEFAULT 100,
-    created_at     TEXT NOT NULL,
-    updated_at     TEXT NOT NULL,
-    completed_at   TEXT
+    id                TEXT PRIMARY KEY,
+    name              TEXT NOT NULL,
+    campaign_type     TEXT NOT NULL DEFAULT 'SMS',
+    template_id       TEXT REFERENCES templates(id) ON DELETE SET NULL,
+    message_body      TEXT NOT NULL,
+    device_id         TEXT REFERENCES devices(id),
+    status            TEXT NOT NULL DEFAULT 'DRAFT',
+    auto_paused       INTEGER NOT NULL DEFAULT 0,
+    pause_reason      TEXT,
+    total_count       INTEGER NOT NULL DEFAULT 0,
+    sent_count        INTEGER NOT NULL DEFAULT 0,
+    failed_count      INTEGER NOT NULL DEFAULT 0,
+    rate_limit_ms     INTEGER NOT NULL DEFAULT 2000,
+    daily_limit       INTEGER NOT NULL DEFAULT 100,
+    ring_duration_sec INTEGER NOT NULL DEFAULT 15,
+    created_at        TEXT NOT NULL,
+    updated_at        TEXT NOT NULL,
+    completed_at      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS messages (

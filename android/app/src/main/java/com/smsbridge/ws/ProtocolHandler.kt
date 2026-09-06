@@ -2,6 +2,8 @@ package com.smsbridge.ws
 
 import android.content.Context
 import com.smsbridge.data.AppDatabase
+import com.smsbridge.data.CallJobEntity
+import com.smsbridge.data.CallJobStatus
 import com.smsbridge.data.JobEntity
 import com.smsbridge.data.JobStatus
 import org.java_websocket.WebSocket
@@ -32,6 +34,7 @@ fun envelope(type: String, payload: JSONObject): String =
  * writes into (decoupling "accept the job" from "actually send it"). */
 class ProtocolHandler(private val context: Context) {
     private val jobDao = AppDatabase.get(context).jobDao()
+    private val callJobDao = AppDatabase.get(context).callJobDao()
     private val tokenStore = TokenStore(context)
     private val authenticatedConnections = mutableSetOf<WebSocket>()
 
@@ -58,9 +61,15 @@ class ProtocolHandler(private val context: Context) {
      * newly authenticated connection, so a desktop that was disconnected
      * mid-campaign catches up on what actually happened on the phone. */
     private suspend fun pushUnsyncedStatuses(conn: WebSocket) {
+        // Push unsynced SMS statuses
         jobDao.unsynced().forEach { job ->
             runCatching { conn.send(smsStatusMessage(job)) }
                 .onSuccess { jobDao.markSynced(job.messageId) }
+        }
+        // Push unsynced call statuses
+        callJobDao.unsynced().forEach { job ->
+            runCatching { conn.send(callStatusMessage(job)) }
+                .onSuccess { callJobDao.markSynced(job.messageId) }
         }
     }
 
@@ -74,6 +83,7 @@ class ProtocolHandler(private val context: Context) {
             "auth" -> handleAuth(payload, conn)
             "heartbeat" -> handleHeartbeat(conn)
             "sms_job" -> handleSmsJob(payload, conn)
+            "call_job" -> handleCallJob(payload, conn)
             "pause" -> BridgeServiceControl.setPaused(true)
             "resume" -> BridgeServiceControl.setPaused(false)
             "cancel_campaign" -> handleCancelCampaign(payload)
@@ -132,8 +142,27 @@ class ProtocolHandler(private val context: Context) {
         BridgeServiceControl.notifyNewJob()
     }
 
+    private suspend fun handleCallJob(payload: JSONObject, conn: WebSocket) {
+        val messageId = payload.getString("message_id")
+        val job = CallJobEntity(
+            messageId = messageId,
+            campaignId = payload.getString("campaign_id"),
+            phoneNumber = payload.getString("phone_number"),
+            ringDurationSec = payload.optInt("ring_duration_sec", 15),
+            simSlot = payload.optInt("sim_slot", 0),
+            rateLimitMs = payload.optLong("rate_limit_ms", 3000L),
+            dailyLimit = payload.optInt("daily_limit", 200),
+            status = CallJobStatus.PENDING,
+        )
+        callJobDao.insertIfAbsent(job)
+        conn.send(envelope("call_job_ack", JSONObject().put("message_id", messageId).put("status", "QUEUED")))
+        BridgeServiceControl.notifyNewCallJob()
+    }
+
     private suspend fun handleCancelCampaign(payload: JSONObject) {
-        jobDao.cancelPendingForCampaign(payload.getString("campaign_id"))
+        val campaignId = payload.getString("campaign_id")
+        jobDao.cancelPendingForCampaign(campaignId)
+        callJobDao.cancelPendingForCampaign(campaignId)
     }
 
     private fun handleUnpair(payload: JSONObject) {
@@ -151,6 +180,15 @@ fun smsStatusMessage(job: JobEntity): String {
     return envelope("sms_status", payload)
 }
 
+fun callStatusMessage(job: CallJobEntity): String {
+    val payload = JSONObject()
+        .put("message_id", job.messageId)
+        .put("status", job.status)
+        .put("error", job.error)
+        .put("ended_at", job.endedAt?.let { ISO.format(Date(it)) })
+    return envelope("call_status", payload)
+}
+
 /** Thin control surface so ProtocolHandler (per-connection) can signal the
  * long-lived BridgeService worker loop without holding a service reference. */
 object BridgeServiceControl {
@@ -158,10 +196,17 @@ object BridgeServiceControl {
     var onNewJob: (() -> Unit)? = null
 
     @Volatile
+    var onNewCallJob: (() -> Unit)? = null
+
+    @Volatile
     var onPauseChanged: ((Boolean) -> Unit)? = null
 
     fun notifyNewJob() {
         onNewJob?.invoke()
+    }
+
+    fun notifyNewCallJob() {
+        onNewCallJob?.invoke()
     }
 
     fun setPaused(paused: Boolean) {

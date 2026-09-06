@@ -126,12 +126,12 @@ class ContactsScreen(QWidget):
         try:
             df = read_excel(path)
             mapping = detect_columns(df)
-            if not mapping["name"] or not mapping["phone"]:
-                headers = list(df.columns)
-                name_col = headers[0] if headers else "Name"
-                phone_col = headers[1] if len(headers) > 1 else headers[0]
-                mapping = {"name": name_col, "phone": phone_col}
-            result = import_contacts(df, mapping, source_file=path)
+            headers = [str(c) for c in df.columns]
+            if not mapping.get("phone") and headers:
+                mapping["phone"] = headers[0]
+            if len(headers) == 1 and mapping.get("name") == mapping.get("phone"):
+                mapping["name"] = None
+            result = import_contacts(df, column_mapping=mapping, source_file=path)
             QMessageBox.information(
                 self, "Import Complete",
                 f"Imported {result.total} records:\n• {result.valid} Valid\n• {result.invalid} Invalid\n• {result.duplicates} Duplicates"
@@ -141,15 +141,16 @@ class ContactsScreen(QWidget):
             QMessageBox.critical(self, "Import Failed", f"Could not read file:\n{exc}")
 
     def _add_contact_manual(self) -> None:
-        name, ok = QInputDialog.getText(self, "Add Record", "Contact Name:")
-        if not ok or not name.strip():
+        name, ok = QInputDialog.getText(self, "Add Record", "Contact Name (optional):")
+        if not ok:
             return
         phone, ok = QInputDialog.getText(self, "Add Record", "Phone Number (e.g. +919024709980):")
         if not ok or not phone.strip():
             return
         phone_clean = phone.strip()
         e164 = phone_clean if phone_clean.startswith("+") else ("+91" + phone_clean if len(phone_clean) == 10 else phone_clean)
-        contacts_repo.create(name=name.strip(), phone_raw=phone_clean, phone_e164=e164, is_valid=True)
+        display_name = name.strip() if name.strip() else phone_clean
+        contacts_repo.create(name=display_name, phone_raw=phone_clean, phone_e164=e164, is_valid=True)
         self.refresh()
 
     def _delete_selected(self) -> None:
