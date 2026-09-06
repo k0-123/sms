@@ -8,6 +8,7 @@ import android.telecom.TelecomManager
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -39,6 +40,7 @@ object CallMaker {
      * @param ringDurationSec Max seconds to let the call ring before auto-hangup
      * @return [CallResult] describing the outcome
      */
+    @Suppress("MissingPermission")
     suspend fun placeCall(
         context: Context,
         phoneNumber: String,
@@ -71,7 +73,7 @@ object CallMaker {
                     }
                 }
             }
-            telephonyManager.registerTelephonyCallback(context.mainExecutor, tcb)
+            telephonyManager.registerTelephonyCallback(ContextCompat.getMainExecutor(context), tcb)
             callback = tcb
         } else {
             // Legacy PhoneStateListener for older APIs
@@ -127,13 +129,14 @@ object CallMaker {
     }
 
     /** End the current call using TelecomManager (API 28+) or reflection fallback. */
+    @Suppress("MissingPermission")
     private fun endCall(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
             try {
                 @Suppress("DEPRECATION")
                 telecomManager.endCall()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 endCallViaReflection(context)
             }
         } else {
@@ -151,7 +154,7 @@ object CallMaker {
             val telephonyService = method.invoke(telephonyManager)
             val endCallMethod = telephonyService.javaClass.getDeclaredMethod("endCall")
             endCallMethod.invoke(telephonyService)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Best-effort; call will end naturally if this fails
         }
     }
